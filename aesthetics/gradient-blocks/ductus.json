@@ -1,0 +1,88 @@
+{
+  "id": "aes_19sjcw4",
+  "name": "gradient-blocks",
+  "version": "0.1.0",
+  "palette": {
+    "glyphs": [
+      "█",
+      "▓",
+      "░",
+      "▒",
+      "·",
+      "▁",
+      "▃",
+      "▅",
+      "▇",
+      "▚",
+      "▞",
+      "▂",
+      "▄",
+      "▆",
+      "▖",
+      "▗",
+      "▘",
+      "▙",
+      "▛",
+      "▜",
+      "▝",
+      "▟"
+    ],
+    "weights": [
+      9,
+      3,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "phrases": []
+  },
+  "vector": {
+    "density": 0.72,
+    "whitespace": 0,
+    "symmetry": 0.55,
+    "runLength": {
+      "mean": 2.3,
+      "var": 9.5
+    },
+    "drip": 0.34,
+    "jitter": 0.58,
+    "emojiRatio": 0,
+    "stackDepth": 0,
+    "grainAffinity": "texture"
+  },
+  "color": {
+    "swatches": [],
+    "ansiSafe": []
+  },
+  "flow": {
+    "fontHints": []
+  },
+  "meta": {
+    "kin": [
+      "textmode",
+      "ramp",
+      "blockdraw",
+      "ansi-lineage"
+    ],
+    "lineage": null,
+    "author": "jon",
+    "hazard": false
+  }
+}

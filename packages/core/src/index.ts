@@ -10,14 +10,32 @@ export {
   MEASURE_ID,
   isWide,
   isDefaultEmojiPresentation,
+  isCombining,
+  stackDepthOf,
   segmentGraphemes,
   clusterWidth,
   measureText,
 } from "./width.js";
 export type { MeasuredCluster, MeasureOptions } from "./width.js";
+export { INK_RAMP, inkWeight, nearestRampGlyph } from "./ramp.js";
+export { censusText, corpusToPhrases } from "./census.js";
+export type { CensusStats, RunLengthStats, HazardFlags } from "./census.js";
+export {
+  buildDuctus,
+  ductusId,
+  ductusByteSize,
+  proposeGrain,
+  hexToAnsi256,
+  DUCTUS_BYTE_BUDGET,
+} from "./ductus.js";
+export type { Ductus, GrainAffinity, BuildDuctusOptions } from "./ductus.js";
+export { renderSpecimen } from "./specimen.js";
+export type { SpecimenOptions } from "./specimen.js";
+export { encodePayload, decodePayload, encodeDuctusUrl, decodeDuctusUrl } from "./url.js";
 
 // Not here yet, and deliberately not faked in the meantime:
 //   - log.ts (§4 event log + replay) — the actual "state = replay(ops)"
-//     machinery, M1's other half.
-//   - census.ts (§7.3) — M0's actual deliverable, imported unchanged by
-//     both the CLI and, later, the app's in-app distill panel (§7.5).
+//     machinery. M1. The CLI doesn't need it; the instrument will.
+//   - image census (§7.3 luminance + k-means chroma) — v1 job, next
+//     pass. The CLI warns when it finds images rather than skipping
+//     them silently.

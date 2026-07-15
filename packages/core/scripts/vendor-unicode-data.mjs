@@ -10,10 +10,18 @@
 //
 // Source files (committed alongside their generated output, for
 // provenance — see src/data/vendor/README.md):
-//   EastAsianWidth.txt   — which codepoints are East_Asian_Width W or F
-//                           (the ones that get 2 cells per §5.1)
-//   emoji-data.txt        — which codepoints have Emoji_Presentation=Yes
-//                           (default-render-as-emoji, also 2 cells)
+//   EastAsianWidth.txt          — which codepoints are East_Asian_Width W or
+//                                  F (the ones that get 2 cells per §5.1)
+//   emoji-data.txt               — which codepoints have Emoji_Presentation=Yes
+//                                  (default-render-as-emoji, also 2 cells)
+//   DerivedGeneralCategory.txt   — which codepoints are combining marks
+//                                  (Mn/Me), so the census can count zalgo
+//                                  stack-depth (§7.2 vector.stackDepth)
+//                                  without reaching for \p{M} regexes —
+//                                  which defer to the engine's ICU tables
+//                                  and would reintroduce the exact
+//                                  unversioned-ruler leak this script exists
+//                                  to close.
 //
 // Usage: node scripts/vendor-unicode-data.mjs <path-to-ucd-dir> <output-dir>
 
@@ -80,6 +88,12 @@ const wideRanges = extractRanges(eawText, (prop) => prop === "W" || prop === "F"
 const emojiText = readFileSync(join(ucdDir, "emoji-data.txt"), "utf8");
 const emojiPresentationRanges = extractRanges(emojiText, (prop) => prop === "Emoji_Presentation");
 
+// --- General_Category Mn (Nonspacing_Mark) + Me (Enclosing_Mark) →
+//     combining marks: 0 cells, attach to previous cluster, and each one
+//     deepens vector.stackDepth in the census (zalgo lives here) ---
+const gcText = readFileSync(join(ucdDir, "DerivedGeneralCategory.txt"), "utf8");
+const combiningRanges = extractRanges(gcText, (prop) => prop === "Mn" || prop === "Me");
+
 mkdirSync(outDir, { recursive: true });
 
 const header = `// GENERATED FILE — do not hand-edit. Regenerate with
@@ -102,10 +116,18 @@ const emojiOut = `${header}
 export const EMOJI_PRESENTATION_RANGES: readonly (readonly [number, number])[] = ${JSON.stringify(emojiPresentationRanges)};
 `;
 
+const combiningOut = `${header}
+/** General_Category Mn|Me ranges — combining marks: 0 cells, attach to the previous cluster (§5.1); each deepens stackDepth (§7.2). */
+export const COMBINING_RANGES: readonly (readonly [number, number])[] = ${JSON.stringify(combiningRanges)};
+`;
+
 writeFileSync(join(outDir, "wide-ranges.generated.ts"), wideOut);
 writeFileSync(join(outDir, "emoji-presentation-ranges.generated.ts"), emojiOut);
+writeFileSync(join(outDir, "combining-ranges.generated.ts"), combiningOut);
 
 console.log(`wide ranges: ${wideRanges.length} (from raw entries)`);
 console.log(`emoji presentation ranges: ${emojiPresentationRanges.length}`);
+console.log(`combining (Mn/Me) ranges: ${combiningRanges.length}`);
 console.log(`wrote ${outDir}/wide-ranges.generated.ts`);
 console.log(`wrote ${outDir}/emoji-presentation-ranges.generated.ts`);
+console.log(`wrote ${outDir}/combining-ranges.generated.ts`);

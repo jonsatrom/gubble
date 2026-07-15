@@ -16,39 +16,47 @@ It is not boilerplate; it is the contract.
 
 ## Where things actually are, honestly, today
 
-This is an M0-stage repo. Read the spec's §17 Build Order before assuming
-anything below is further along than it looks:
+**M0 is REACHED**: `gubble compile` runs, two example aesthetics are
+compiled, and the seed library is open for feeding. **The operator's
+manual is [FEEDING.md](./FEEDING.md)** — start there if you came to make
+aesthetics rather than read architecture.
 
 ```
 gubble/
   packages/
-    core/    @gubble/core   — framework-free TS. PRNG (sfc32, ratified
-                               §4.3), hash (FNV-1a, ratified §4.3), seed
-                               minting, and cell-width math (§5.1 — EAW +
-                               emoji presentation against a vendored,
-                               frozen Unicode 16.0 snapshot, `measure:
-                               "eaw-16.0/g1"`) are DONE and tested, 40/40.
+    core/    @gubble/core   — framework-free TS, all tested (66/66):
+                               PRNG (sfc32) · hash (FNV-1a) · seed
+                               minting · cell-width math over a vendored
+                               frozen Unicode 16.0 snapshot (`measure:
+                               "eaw-16.0/g1"`, now incl. combining-mark
+                               ranges for zalgo stack-depth) · ink-weight
+                               ramp · the census (§7.3) · ductus build +
+                               content-derived ids (§7.2) · two-sweep
+                               specimen renderer (§7.4) · aesthetic-as-URL
+                               deflate encoding (§12).
                                KNOWN GAP, documented in width.ts: grapheme
                                CLUSTER BOUNDARIES still come from the host
-                               engine's Intl.Segmenter/ICU, which isn't
-                               vendored or versioned by us — a real,
+                               engine's Intl.Segmenter/ICU — a real,
                                unclosed Directive 1 crack, not pretended
-                               away. Event log, cell buffer, census still
-                               not written. Don't assume anything exists;
-                               check src/.
-    cli/     @gubble/cli    — the M0 deliverable per spec §8. Package
-                               shape exists; `gubble compile` itself is
-                               not implemented (it needs census.ts, which
-                               needs the event log, which needs width.ts —
-                               see the dependency chain in §3's diagram).
+                               away.
+                               NOT YET: event log/replay (M1), cell
+                               buffer, image census.
+    cli/     @gubble/cli    — LIVE. compile (+ --watch) / census /
+                               specimen / link, zero deps beyond core +
+                               node builtins. See FEEDING.md.
     app/     @gubble/app    — placeholder only. Arrives at M2. See its
                                own README for why that's not a bug.
-  aesthetics/                — empty. This is where middens go once Jon
-                               starts feeding them (sources/ folders are
-                               gitignored — Prime Directive 6, they never
-                               publish and they don't get committed either).
-  calibration/                — empty. Gradient test fixtures per §8, not
-                               built yet.
+  aesthetics/                — two compiled examples: gradient-blocks
+                               (the ramp promoted to aesthetic) and
+                               myspace-swirl (corpus-bearing, profile-core
+                               lineage). NOTE: their sources/ and
+                               corpus.txt live only on Jon's machine —
+                               Directive 6 says only ductus + specimen +
+                               manifest leave a folder, so that's all git
+                               carries.
+  calibration/                — density-sweep-lr.txt gradient fixture +
+                               the discipline docs (§8).
+  FEEDING.md                  — how to feed middens. The operator's manual.
   GUBBLE-SPEC.md              — the contract. Start here, always.
 ```
 

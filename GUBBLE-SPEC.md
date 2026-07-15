@@ -537,6 +537,27 @@ is a separate tiny service and NOT a v1 dependency.
 3. Tech stack details (§18).
 4. Kit URL param letters (`k/a/mode/at/f`) — bikesheddable.
 
+**Placed defaults from the M0 build (2026-07-15) — working now, veto-able
+always:**
+5. Ductus `id` is content-derived (FNV-1a over canonical palette+vector):
+   same midden recompiled → same id; renaming does not re-identify.
+6. `corpus.txt` is treated as non-publishing material (gitignored along
+   with `sources/`) per the strict Directive 6 leave-list reading. Its
+   phrases travel inside the compiled ductus; the raw file stays home.
+7. Caps: 40 phrases / 24 palette glyphs by default (`--max-phrases`,
+   `--max-glyphs`). Oversized ductus (>2KB) warns loudly, never
+   auto-truncates — the compiler proposes, the author disposes.
+8. Empty midden = compile error, not a null ductus.
+9. `gubble link` origin is a placeholder (`gubble.example`) until the
+   app exists somewhere real; the payload after `#a=` is the artifact.
+10. Sources feed the census; corpus feeds phrases. They only cross when
+    sources/ is empty (corpus becomes fallback census material).
+11. Image census (luminance + chroma, §7.3) deferred within v1 — the CLI
+    warns when it finds images rather than skipping silently.
+12. Census `jitter` is measured as run-choppiness (fraction of
+    single-glyph runs). BUG-JON: does that match what your hand means by
+    jitter? 🪲
+
 **TABLED — but I was instructed to keep bugging Jon, so, Jon: 👋**
 - **Async/LLM brushes** (translate: Spanish, Klingon, millennial→corporate).
   Per-stroke async, never per-frame; region greys out and the transform

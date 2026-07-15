@@ -1,0 +1,112 @@
+{
+  "id": "aes_0fcje11",
+  "name": "myspace-swirl",
+  "version": "0.1.0",
+  "palette": {
+    "glyphs": [
+      "°",
+      "¸",
+      ".",
+      "~",
+      "*",
+      "·",
+      "¤",
+      ",",
+      "º",
+      "ø",
+      "`",
+      ":",
+      "。",
+      "´",
+      "¯",
+      "¨",
+      "+",
+      "☆",
+      "・",
+      "♡",
+      "。ﾟ",
+      "*ﾟ"
+    ],
+    "weights": [
+      9,
+      9,
+      8,
+      7,
+      7,
+      6,
+      5,
+      5,
+      5,
+      5,
+      4,
+      3,
+      2,
+      2,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "phrases": [
+      "thanks 4 the add!!",
+      "top 8 forever",
+      "leave a comment plz",
+      "xoxo see u at the show",
+      "music is my life",
+      "pc4pc?",
+      "new pics up!!",
+      "ur page is so cute omg",
+      "who took u off their top 8",
+      "extended network baby",
+      "scene not herd",
+      "kthxbye"
+    ]
+  },
+  "vector": {
+    "density": 0.24,
+    "whitespace": 0,
+    "symmetry": 0.61,
+    "runLength": {
+      "mean": 1.1,
+      "var": 0.1
+    },
+    "drip": 0.04,
+    "jitter": 0.93,
+    "emojiRatio": 0,
+    "stackDepth": 0,
+    "grainAffinity": "poster"
+  },
+  "color": {
+    "swatches": [
+      "#ff9de2",
+      "#c8f7ff",
+      "#fff6a9"
+    ],
+    "ansiSafe": [
+      218,
+      195,
+      229
+    ]
+  },
+  "flow": {
+    "fontHints": [
+      "Comic Sans MS",
+      "cursive"
+    ]
+  },
+  "meta": {
+    "kin": [
+      "myspace",
+      "web1",
+      "glitter",
+      "profile-core"
+    ],
+    "lineage": null,
+    "author": "jon",
+    "hazard": false
+  }
+}

@@ -1,0 +1,10 @@
+# myspace-swirl — the divider that held a million profile pages together.
+# Note the palette bites its own delimiter: there's a live grave accent
+# in the material. Fitting. (Appendix A called this one.)
+name: myspace-swirl
+version: 0.1.0
+author: jon
+kin: [myspace, web1, glitter, profile-core]
+grainAffinity: poster
+fontHints: [Comic Sans MS, cursive]
+swatches: ["#ff9de2", "#c8f7ff", "#fff6a9"]

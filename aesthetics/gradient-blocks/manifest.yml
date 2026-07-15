@@ -1,0 +1,7 @@
+# gradient-blocks — the ramp itself, promoted to aesthetic.
+# The ur-material: block elements doing what block elements do.
+name: gradient-blocks
+version: 0.1.0
+author: jon
+kin: [textmode, ramp, blockdraw, ansi-lineage]
+grainAffinity: texture

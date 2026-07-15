@@ -12,6 +12,7 @@
 
 import { WIDE_RANGES } from "./data/generated/wide-ranges.generated.js";
 import { EMOJI_PRESENTATION_RANGES } from "./data/generated/emoji-presentation-ranges.generated.js";
+import { COMBINING_RANGES } from "./data/generated/combining-ranges.generated.js";
 import { deriveUnit } from "./hash.js";
 
 /**
@@ -61,6 +62,26 @@ export function isWide(cp: number): boolean {
 
 export function isDefaultEmojiPresentation(cp: number): boolean {
   return inRanges(cp, EMOJI_PRESENTATION_RANGES);
+}
+
+/**
+ * Is this codepoint a combining mark (General_Category Mn or Me)? Checked
+ * against our frozen snapshot, NOT via `\p{M}` regex — property escapes
+ * defer to whatever Unicode tables the host engine bundled, which is the
+ * same unversioned-ruler leak the `measure` field exists to prevent.
+ * The census uses this to count zalgo stack-depth (§7.2 vector.stackDepth).
+ */
+export function isCombining(cp: number): boolean {
+  return inRanges(cp, COMBINING_RANGES);
+}
+
+/** How many combining marks (Mn/Me) are stacked inside one grapheme cluster? */
+export function stackDepthOf(cluster: string): number {
+  let depth = 0;
+  for (const ch of cluster) {
+    if (isCombining(ch.codePointAt(0)!)) depth++;
+  }
+  return depth;
 }
 
 /**

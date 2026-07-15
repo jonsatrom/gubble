@@ -6,6 +6,10 @@ public UCD mirror (`https://www.unicode.org/Public/16.0.0/ucd/`), fetched
 
 - `EastAsianWidth.txt` — East_Asian_Width property assignments
 - `emoji-data.txt` — Emoji properties, we consume `Emoji_Presentation`
+- `DerivedGeneralCategory.txt` — General_Category assignments, we consume
+  `Mn`/`Me` (combining marks) so the census can count zalgo stack-depth
+  without `\p{M}` regexes, which defer to the engine's own ICU tables and
+  would reopen the unversioned-ruler leak this directory exists to close
 
 They are committed here **on purpose, unmodified, forever** — this is the
 "freeze the ruler" ruling from the width-table interview (GUBBLE-SPEC.md
