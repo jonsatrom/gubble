@@ -1,0 +1,23 @@
+{
+  "name": "@gubble/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase Zero deliverable. `gubble compile <folder>` — census a midden into a ductus.json + specimen.txt. Ships before any UI exists.",
+  "bin": {
+    "gubble": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "compile": "node ./dist/index.js"
+  },
+  "dependencies": {
+    "@gubble/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

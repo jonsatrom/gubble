@@ -1,0 +1,11 @@
+# the usual suspects
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# sources/ folders are middens — private studio material per Prime
+# Directive 6 (§2). They NEVER publish and they never get committed either.
+# Only ductus.json + specimen.txt + manifest.yml leave an aesthetic folder.
+aesthetics/*/sources/

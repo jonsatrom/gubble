@@ -1,0 +1,17 @@
+{
+  "name": "@gubble/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-free TS: PRNG, hash, event log + replay, cell buffer, census, mixer math. Zero DOM assumptions — runs in browser, Node, and Web Workers alike.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
