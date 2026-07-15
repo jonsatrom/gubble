@@ -23,11 +23,18 @@ anything below is further along than it looks:
 gubble/
   packages/
     core/    @gubble/core   — framework-free TS. PRNG (sfc32, ratified
-                               §4.3) + hash (FNV-1a, ratified §4.3) + seed
-                               minting are DONE and tested. Everything
-                               else in §3's architecture diagram — event
-                               log, cell buffer, census, width math — is
-                               not written yet. Don't assume it exists;
+                               §4.3), hash (FNV-1a, ratified §4.3), seed
+                               minting, and cell-width math (§5.1 — EAW +
+                               emoji presentation against a vendored,
+                               frozen Unicode 16.0 snapshot, `measure:
+                               "eaw-16.0/g1"`) are DONE and tested, 40/40.
+                               KNOWN GAP, documented in width.ts: grapheme
+                               CLUSTER BOUNDARIES still come from the host
+                               engine's Intl.Segmenter/ICU, which isn't
+                               vendored or versioned by us — a real,
+                               unclosed Directive 1 crack, not pretended
+                               away. Event log, cell buffer, census still
+                               not written. Don't assume anything exists;
                                check src/.
     cli/     @gubble/cli    — the M0 deliverable per spec §8. Package
                                shape exists; `gubble compile` itself is

@@ -6,11 +6,17 @@
 export { fnv1a, deriveSeed, deriveUnit } from "./hash.js";
 export { splitmix32, sfc32, createRng, RNG_ID } from "./prng.js";
 export { mintDocSeed } from "./seed.js";
+export {
+  MEASURE_ID,
+  isWide,
+  isDefaultEmojiPresentation,
+  segmentGraphemes,
+  clusterWidth,
+  measureText,
+} from "./width.js";
+export type { MeasuredCluster, MeasureOptions } from "./width.js";
 
 // Not here yet, and deliberately not faked in the meantime:
-//   - width.ts (§5.1 cell-width math + the vendored `measure` Unicode
-//     snapshot) — needs real Unicode data sourced and frozen, not a stub
-//     pretending to be done.
 //   - log.ts (§4 event log + replay) — the actual "state = replay(ops)"
 //     machinery, M1's other half.
 //   - census.ts (§7.3) — M0's actual deliverable, imported unchanged by
