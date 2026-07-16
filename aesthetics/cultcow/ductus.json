@@ -1,0 +1,114 @@
+{
+  "id": "aes_0wxdnkz",
+  "name": "linecow",
+  "version": "0.1.0",
+  "palette": {
+    "glyphs": [
+      "░",
+      "▓",
+      "▒",
+      "'",
+      "_",
+      ".",
+      "-",
+      "▄",
+      "|",
+      "■",
+      "─",
+      ",",
+      "\\",
+      "/",
+      ")",
+      "`",
+      "w",
+      "(",
+      "o",
+      "*",
+      "e",
+      "i",
+      "n",
+      "@"
+    ],
+    "weights": [
+      9,
+      7,
+      4,
+      3,
+      3,
+      3,
+      2,
+      2,
+      2,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "phrases": [
+      "Hi,",
+      "I am a hacker, and I have successfully gained access to your operating system.",
+      "I also have full access to your account.",
+      "I've been watching you for a few months now.",
+      "The fact is that your computer has been infected with malware through an adult site that you visited.",
+      "If you are not familiar with this, I will explain.",
+      "Trojan Virus gives me full access and control over a computer or other device.",
+      "This means that I can see everything on your screen, turn on the camera and microphone, but you do not know about it.",
+      "I also have access to all your contacts and all your correspondence.",
+      "Why did your antivirus not detect malware?",
+      "Answer: The malware I used is driver-based, I update its signatures every 4 hours.",
+      "Hence your antivirus is unable to detect its presence.",
+      "With one mouse click, I can send this video to all your emails and contacts on your social networks.",
+      "I can also make public all your e-mail correspondence and chat history on the messengers that you use.",
+      "My Bitcoin address (BTC Wallet) is: bc1qjp6k73rwry55q96rasfsauky9qktlnaq6qh544",
+      "After confirming your payment, I will delete the video immediately, and that's it.",
+      "You will never hear from me again.",
+      "I will give you 50 hours (more than 2 days) to pay.",
+      "I will get a notice, when you open this email, and the timer will start.",
+      "Filing a complaint somewhere does not make sense because this email cannot be tracked like my Bitcoin address.",
+      "I never make any mistakes.",
+      "If I find that you have shared this message with someone else, the video will be immediately distributed.",
+      "Best regards!"
+    ]
+  },
+  "vector": {
+    "density": 0.21,
+    "whitespace": 0.45,
+    "symmetry": 0.34,
+    "runLength": {
+      "mean": 2.8,
+      "var": 27.1
+    },
+    "drip": 0.56,
+    "jitter": 0.73,
+    "emojiRatio": 0,
+    "stackDepth": 0,
+    "grainAffinity": "both"
+  },
+  "color": {
+    "swatches": [],
+    "ansiSafe": []
+  },
+  "flow": {
+    "fontHints": []
+  },
+  "meta": {
+    "kin": [
+      "cowsay",
+      "asciidraw"
+    ],
+    "lineage": null,
+    "author": "jon",
+    "hazard": false
+  }
+}
