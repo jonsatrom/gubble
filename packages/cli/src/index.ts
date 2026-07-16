@@ -16,6 +16,11 @@ import {
   renderSpecimen,
   encodeDuctusUrl,
   MEASURE_ID,
+  createDocument,
+  appendOp,
+  truncate,
+  replay,
+  mintDocSeed,
   type Ductus,
   type CensusStats,
   type GrainAffinity,
@@ -38,6 +43,13 @@ const HELP = `
 
     gubble link <ductus.json> [--origin URL]
         print the aesthetic-as-URL
+
+    gubble fill <ductus.json> [--width N] [--height N] [--seed HEX] [--undo]
+        the event log, touchable: create a document, append fill ops,
+        replay, print the page. Same --seed → byte-identical page,
+        forever (pipe two runs to diff and watch nothing happen).
+        --undo appends a second fill then truncates it away, printing
+        both states — undo as log truncation, demonstrated.
 
   the folder format, the worldview, and every design fight worth having:
   GUBBLE-SPEC.md. gubble gubble.
@@ -224,6 +236,35 @@ async function main(): Promise<void> {
       console.log(`\n  ${url}\n`);
       console.log(`  ${bytes} bytes of ductus → ${url.length} chars of URL`);
       console.log(`  (origin is a placeholder until the app exists — the payload IS the aesthetic)\n`);
+      break;
+    }
+
+    case "fill": {
+      // [PLACED DEFAULT — §19]: `fill` isn't in the §8 verb list; it
+      // exists so the event log (M1) is checkable by hand instead of
+      // only by test suite. It's a preview of M2's instrument, one op
+      // at a time.
+      if (!existsSync(path)) fail(`${target}: no such ductus.json`);
+      const ductus = JSON.parse(readFileSync(path, "utf8")) as Ductus;
+      const cols = flagValue(rest, "--width") ? Number(flagValue(rest, "--width")) : 80;
+      const rows = flagValue(rest, "--height") ? Number(flagValue(rest, "--height")) : 24;
+      const seed = flagValue(rest, "--seed") ?? mintDocSeed();
+
+      const doc = createDocument({ cols, rows }, seed);
+      appendOp(doc, { op: "fill", scope: { kind: "page" }, args: { ductus } });
+      console.log(replay(doc).toText());
+      console.log(`\n  docSeed ${seed} · 1 op · rng ${doc.header.rng} · measure ${doc.header.measure}`);
+      console.log(`  reproduce this exact page anytime: --seed ${seed}`);
+
+      if (rest.includes("--undo")) {
+        appendOp(doc, { op: "fill", scope: { kind: "page" }, args: { ductus } });
+        console.log(`\n  ── op #2 appended (a second fill, overprinting) ──\n`);
+        console.log(replay(doc).toText());
+        const undone = truncate(doc, 1);
+        console.log(`\n  ── undo = truncate(doc, 1) — no eraser, just less history ──\n`);
+        console.log(replay(undone).toText());
+        console.log(`\n  the undone page is byte-identical to the first: ${replay(undone).toText() === replay(truncate(doc, 1)).toText() ? "✓" : "✗ (file a bug, loudly)"}`);
+      }
       break;
     }
 

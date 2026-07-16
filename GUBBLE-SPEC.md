@@ -162,9 +162,13 @@ sfc32 needs four out) and stepped sequentially wherever an op needs an
 draw N genuinely depends on having made draw N-1.
 
 Per-cell randomness is a different shape on purpose: `hash(opSeed ‖
-cellIndex)`, hashed with **FNV-1a** (ratified — cheap, ~15 lines, zero
-dependency, honors "framework-free" the same way hand-rolling cell-width math
-does), so any single cell is computable in isolation. A re-render of any
+cellIndex)`, hashed with **FNV-1a + a murmur3-style avalanche finalizer**
+(ratified as amended — raw FNV-1a turned out to correlate adjacent cell
+indices, producing row-banded fills; caught by hand-checking `gubble fill`
+output before any document existed in the wild, fixed as derivation-chain
+version `sfc32/2`. Cheap, ~25 lines, zero dependency, honors
+"framework-free" the same way hand-rolling cell-width math does), so any
+single cell is computable in isolation. A re-render of any
 subregion is stable without replaying neighbors — random *access*, not random
 *sequence*. Flutter (§9 PHASE) extends the same hash one key deeper:
 `hash(opSeed ‖ cellIndex ‖ frameIndex)` — time enters ONLY as an integer frame

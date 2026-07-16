@@ -32,6 +32,26 @@ export function fnv1a(input: string): number {
 // just in the prose, so the code and the spec are citing each other.
 const FIELD_SEP = "‖";
 
+// The avalanche finalizer (murmur3's fmix32). WHY THIS EXISTS — a war
+// story, preserved: raw FNV-1a has weak avalanche on the last byte
+// processed. Derived keys like "seed‖359" vs "seed‖360" differ only at
+// the tail, so adjacent cell indices produced CORRELATED hashes — rolls
+// creeping by ~0.004 per cell, whole rows of a fill going dead or
+// flooding together. It looked like texture. It was a defect. Caught
+// 2026-07-15 by the `gubble fill` check verb, the first time a human
+// pointed the plumbing at a page and squinted. This finalizer is why
+// the derivation chain is versioned sfc32/2 — v1 (unfinalized) never
+// shipped in any wild document, so nothing broke. THIS time. The lesson
+// is the header field.
+function fmix32(h: number): number {
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
 /**
  * Combine a seed with any number of key parts (op index, cell index, frame
  * index...) into an 8-hex-char derived seed. This is what ends up in an
@@ -41,7 +61,7 @@ const FIELD_SEP = "‖";
  */
 export function deriveSeed(seed: string, ...keys: (string | number)[]): string {
   const joined = [seed, ...keys].join(FIELD_SEP);
-  return fnv1a(joined).toString(16).padStart(8, "0");
+  return fmix32(fnv1a(joined)).toString(16).padStart(8, "0");
 }
 
 /**
@@ -54,5 +74,5 @@ export function deriveSeed(seed: string, ...keys: (string | number)[]): string {
  */
 export function deriveUnit(seed: string, ...keys: (string | number)[]): number {
   const joined = [seed, ...keys].join(FIELD_SEP);
-  return fnv1a(joined) / 0x1_0000_0000; // 2^32 — normalize uint32 to [0, 1)
+  return fmix32(fnv1a(joined)) / 0x1_0000_0000; // 2^32 — normalize uint32 to [0, 1)
 }

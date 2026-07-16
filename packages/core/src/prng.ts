@@ -21,7 +21,14 @@ import { fnv1a } from "./hash.js";
 // a silent rewrite of what a year-old share-URL means. See the Directive 1
 // addendum in §2 — the dice are named so they can be forked without
 // breaking anyone's replay.
-export const RNG_ID = "sfc32/1" as const;
+//
+// The version suffix covers the WHOLE derivation chain, not just the
+// sfc32 core: /1 was raw FNV-1a per-cell derivation, retired same-day it
+// was caught producing row-correlated fills (see the war story in
+// hash.ts); /2 adds the fmix32 avalanche finalizer. No wild documents
+// existed under /1, so nothing anywhere broke — the versioning
+// discipline got its first live-fire test anyway and the drill worked.
+export const RNG_ID = "sfc32/2" as const;
 
 /**
  * Expand a single 32-bit seed into a stream of well-mixed 32-bit words.

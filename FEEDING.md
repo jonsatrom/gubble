@@ -136,7 +136,38 @@ node packages/cli/dist/index.js link aesthetics/YOUR-NAME/ductus.json
 - **Phrase cap: 40** (`--max-phrases` to change), glyph cap: 24
   (`--max-glyphs`). Both exist to keep the URL discipline honest.
 
-## 5. What does NOT exist yet, so you don't go looking
+## 5. Checking the work (yours, mine, anyone's)
+
+Four layers, cheapest first:
+
+```bash
+# what changed lately, and in which files:
+git log --oneline -8
+git show --stat HEAD          # last commit's file list
+git show HEAD                 # the full diff, if you want the code
+
+# the proofs — every property the Prime Directives depend on:
+npm test                      # 81 tests; red = something sacred broke
+
+# touch the event log yourself (M1 made visible):
+node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --seed cafef00d
+# run it TWICE with the same --seed and diff — determinism, observable:
+node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --seed abc > /tmp/a.txt
+node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --seed abc > /tmp/b.txt
+diff /tmp/a.txt /tmp/b.txt    # empty output = the promise holds
+
+# undo-as-log-truncation, demonstrated live:
+node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --undo
+```
+
+And squint at actual output. The first time a human pointed `gubble
+fill` at a page and looked (2026-07-15), they caught a real defect the
+test suite had missed: raw FNV-1a correlating adjacent cells into
+row-banded fills. The fix is versioned as derivation chain `sfc32/2`,
+the war story lives in `packages/core/src/hash.ts`, and a regression
+test now stands guard. Eyeballs are a calibration instrument. Use them.
+
+## 6. What does NOT exist yet, so you don't go looking
 
 Image census (luminance→ink, k-means→swatches — next pass), the event
 log / document format (M1), GRID/FLOW rendering, the mixer, the app

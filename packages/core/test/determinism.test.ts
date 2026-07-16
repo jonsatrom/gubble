@@ -68,6 +68,33 @@ describe("deriveSeed / deriveUnit — the random-ACCESS primitives", () => {
     // "at rest" and "mid-flutter frame 0" ought to be distinguishable.
     expect(frame0).not.toBe(noFrame);
   });
+
+  it("REGRESSION (the sfc32/2 bug): sequential cell indices must not correlate", () => {
+    // Raw FNV-1a gave adjacent cells nearly identical rolls (Δ≈0.004),
+    // so fills came out row-banded — dead rows, flooded rows. The fmix32
+    // finalizer fixed it. This test pins the fix two ways:
+    const opSeed = deriveSeed(docSeed, 7);
+
+    // 1. Adjacent draws differ substantially on average (raw FNV-1a
+    //    averaged ~0.004 here; anything decorrelated averages ~1/3).
+    let deltaSum = 0;
+    const N = 600;
+    for (let i = 0; i < N - 1; i++) {
+      deltaSum += Math.abs(deriveUnit(opSeed, i + 1) - deriveUnit(opSeed, i));
+    }
+    expect(deltaSum / (N - 1)).toBeGreaterThan(0.2);
+
+    // 2. No 60-cell "row" of a 0.21-density gate comes out empty or
+    //    flooded (binomial mean ≈ 12.6; 0 or 60 means banding is back).
+    for (let row = 0; row < 10; row++) {
+      let inked = 0;
+      for (let col = 0; col < 60; col++) {
+        if (deriveUnit(opSeed, row * 60 + col) < 0.21) inked++;
+      }
+      expect(inked).toBeGreaterThan(2);
+      expect(inked).toBeLessThan(30);
+    }
+  });
 });
 
 describe("splitmix32 + sfc32 — the ORDERED-draw engine", () => {
@@ -111,7 +138,7 @@ describe("createRng — the full seed-string-to-generator chain", () => {
   });
 
   it("RNG_ID matches what the header schema (§4.1) expects to record", () => {
-    expect(RNG_ID).toBe("sfc32/1");
+    expect(RNG_ID).toBe("sfc32/2");
   });
 });
 
