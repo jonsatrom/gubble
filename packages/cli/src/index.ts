@@ -163,6 +163,17 @@ async function compileFolder(
 }
 
 async function main(): Promise<void> {
+  // Fail loud and early on old Node rather than cryptically deep in a
+  // verb. The repo's .nvmrc pins 20; the system default around here has
+  // been known to be an EOL 16, which limps through most verbs and then
+  // faceplants on Web Crypto. Guard the door, name the fix.
+  const nodeMajor = Number(process.versions.node.split(".")[0]);
+  if (nodeMajor < 20) {
+    fail(
+      `gubble needs Node 20+, and this is Node ${process.versions.node}.\n    Fix: run \`nvm use\` in the repo root (reads .nvmrc), then try again.`,
+    );
+  }
+
   const [, , command, target, ...rest] = process.argv;
 
   if (!command || command === "--help" || command === "-h" || command === "help") {

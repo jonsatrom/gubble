@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# ./gubble — the launcher that remembers Node so you don't have to.
+#
+# The repo pins Node 20 in .nvmrc, but a shell that hasn't run `nvm use`
+# quietly hands you the system default (an EOL Node 16 around here),
+# which limps through most verbs and then faceplants on Web Crypto.
+# This script finds a suitable Node on its own: your current one if
+# it's new enough, else the newest matching install in ~/.nvm. No shell
+# config, no ceremony — just `./gubble compile aesthetics/whatever`.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WANT="$(tr -d '[:space:]' < "$ROOT/.nvmrc")"
+
+if command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge "$WANT" ]; then
+  NODE="$(command -v node)"
+else
+  NODE="$(ls -d "$HOME/.nvm/versions/node/v$WANT"*/bin/node 2>/dev/null | sort -V | tail -1 || true)"
+  if [ -z "${NODE:-}" ] || [ ! -x "$NODE" ]; then
+    echo "  ✗ no Node $WANT+ found. Fix: nvm install $WANT   (then just re-run me)" >&2
+    exit 1
+  fi
+fi
+
+CLI="$ROOT/packages/cli/dist/index.js"
+if [ ! -f "$CLI" ]; then
+  echo "  ~ CLI not built yet — building once (tsc)…" >&2
+  NPM="$(dirname "$NODE")/npm"
+  (cd "$ROOT" && "$NPM" run build >/dev/null 2>&1) || {
+    echo "  ✗ build failed — run \`npm install && npm run build\` in $ROOT to see why" >&2
+    exit 1
+  }
+fi
+
+exec "$NODE" "$CLI" "$@"

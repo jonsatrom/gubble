@@ -26,6 +26,13 @@ declare const crypto: {
  * not minted fresh.
  */
 export function mintDocSeed(): string {
+  if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") {
+    // Node < 18 has no global Web Crypto. Say so usefully instead of
+    // letting a bare ReferenceError gaslight whoever hits this.
+    throw new Error(
+      "no Web Crypto in this runtime — gubble needs Node 20+ (run `nvm use` in the repo root) or a modern browser",
+    );
+  }
   const bytes = new Uint8Array(16); // 128 bits, per §4.1's docSeed spec
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");

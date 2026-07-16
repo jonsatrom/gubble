@@ -16,8 +16,17 @@ npm install      # once, and again if package.json ever changes
 npm run build    # compiles core + cli
 ```
 
-Sanity check — run the whole test suite (66 tests: determinism, width
-math, census calibration, specimen sweeps, URL round-trips):
+**The Node thing, solved:** every `./gubble …` command below runs
+through a launcher script that finds Node 20 on its own (your current
+one if it's new enough, else nvm's copy) — so for CLI use you can
+forget `nvm use` exists. You still need it for `npm install` / `npm
+run build` / `npm test`, which use whatever node your shell has. If
+you run the CLI raw with old Node anyway, it now tells you exactly
+what's wrong instead of muttering "crypto is not defined".
+
+Sanity check — run the whole test suite (81 tests: determinism, width
+math, census calibration, specimen sweeps, URL round-trips, event-log
+replay):
 
 ```bash
 npm test
@@ -29,12 +38,12 @@ fresh pull, that's a bug worth reporting loudly.
 ## 1. Compile the two examples that already exist
 
 ```bash
-node packages/cli/dist/index.js compile aesthetics/gradient-blocks
-node packages/cli/dist/index.js compile aesthetics/myspace-swirl
+./gubble compile aesthetics/gradient-blocks
+./gubble compile aesthetics/myspace-swirl
 ```
 
 (`npx gubble compile …` also works if npm linked the bin during install;
-the `node packages/cli/dist/index.js` form always works. Pick whichever
+the `./gubble` form always works. Pick whichever
 your fingers like.)
 
 Each compile prints the vector — density, whitespace, symmetry,
@@ -90,27 +99,27 @@ Then feed it:
 Then:
 
 ```bash
-node packages/cli/dist/index.js compile aesthetics/YOUR-NAME
+./gubble compile aesthetics/YOUR-NAME
 ```
 
 Or leave it running while you feed the midden — recompiles on every
 change, the ductus drifts as the material grows:
 
 ```bash
-node packages/cli/dist/index.js compile aesthetics/YOUR-NAME --watch
+./gubble compile aesthetics/YOUR-NAME --watch
 ```
 
 ## 3. The other three verbs
 
 ```bash
 # raw stats, no writes — census any file or folder (calibration use):
-node packages/cli/dist/index.js census calibration/density-sweep-lr.txt
+./gubble census calibration/density-sweep-lr.txt
 
 # re-render a specimen at other dimensions / re-voiced grain (§6):
-node packages/cli/dist/index.js specimen aesthetics/YOUR-NAME/ductus.json --width 132 --grain texture
+./gubble specimen aesthetics/YOUR-NAME/ductus.json --width 132 --grain texture
 
 # the aesthetic-as-URL — the whole ductus, compressed into a link:
-node packages/cli/dist/index.js link aesthetics/YOUR-NAME/ductus.json
+./gubble link aesthetics/YOUR-NAME/ductus.json
 ```
 
 ## 4. Things worth knowing before they surprise you
@@ -150,14 +159,14 @@ git show HEAD                 # the full diff, if you want the code
 npm test                      # 81 tests; red = something sacred broke
 
 # touch the event log yourself (M1 made visible):
-node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --seed cafef00d
+./gubble fill aesthetics/cultcow/ductus.json --seed cafef00d
 # run it TWICE with the same --seed and diff — determinism, observable:
-node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --seed abc > /tmp/a.txt
-node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --seed abc > /tmp/b.txt
+./gubble fill aesthetics/cultcow/ductus.json --seed abc > /tmp/a.txt
+./gubble fill aesthetics/cultcow/ductus.json --seed abc > /tmp/b.txt
 diff /tmp/a.txt /tmp/b.txt    # empty output = the promise holds
 
 # undo-as-log-truncation, demonstrated live:
-node packages/cli/dist/index.js fill aesthetics/cultcow/ductus.json --undo
+./gubble fill aesthetics/cultcow/ductus.json --undo
 ```
 
 And squint at actual output. The first time a human pointed `gubble
@@ -169,9 +178,11 @@ test now stands guard. Eyeballs are a calibration instrument. Use them.
 
 ## 6. What does NOT exist yet, so you don't go looking
 
-Image census (luminance→ink, k-means→swatches — next pass), the event
-log / document format (M1), GRID/FLOW rendering, the mixer, the app
-entirely (M2+). The CLI is the whole instrument today. That's Phase
-Zero working as designed: the seed library doesn't wait for the stage.
+Image census (luminance→ink, k-means→swatches — next pass), the mixer
+and kits (M2), GRID/FLOW rendering, effects, the app entirely (M2+).
+The event log DOES exist now (M1 — that's what `./gubble fill` is
+poking), but its only face is that verb. The CLI is the whole
+instrument today. That's Phase Zero working as designed: the seed
+library doesn't wait for the stage.
 
 gubble gubble.
