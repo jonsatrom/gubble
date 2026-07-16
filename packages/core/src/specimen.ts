@@ -14,6 +14,7 @@
 
 import { deriveSeed, deriveUnit } from "./hash.js";
 import { clusterWidth, segmentGraphemes } from "./width.js";
+import { weightedPick, applyStack, ZALGO_MARKS, lerp, clamp } from "./draw.js";
 import type { Ductus, GrainAffinity } from "./ductus.js";
 
 export interface SpecimenOptions {
@@ -22,26 +23,6 @@ export interface SpecimenOptions {
   /** Re-voice the render (§6 GRAIN interplay) without touching the ductus. */
   grain?: GrainAffinity;
 }
-
-// A small standing set of combining marks for expressing stackDepth.
-// These are EXPRESSION vocabulary (how the renderer performs zalgo), not
-// palette material — an aesthetic's own stacked clusters live in its
-// palette already; this set is only reached for when the vector says
-// "this material stacks" and the drawn glyph is bare.
-const ZALGO_MARKS = ["́", "̀", "̂", "̃", "̄", "̆", "̇", "̈", "̊", "̵", "̶"];
-
-function weightedPick(glyphs: string[], weights: number[], roll: number): string {
-  const total = weights.reduce((a, b) => a + b, 0);
-  let target = roll * total;
-  for (let i = 0; i < glyphs.length; i++) {
-    target -= weights[i]!;
-    if (target < 0) return glyphs[i]!;
-  }
-  return glyphs[glyphs.length - 1] ?? " ";
-}
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /**
  * Render the specimen page for a ductus. Pure function of
@@ -126,15 +107,9 @@ export function renderSpecimen(ductus: Ductus, opts: SpecimenOptions = {}): stri
 
       // Zalgo expression: stacking is part of the shred (§7.4), so in
       // legible mode marks pile on harder toward the right edge.
+      // (Shared vocabulary with the mixer and fill — draw.ts.)
       const stackScale = legible ? x : 1;
-      const stackTarget = v.stackDepth * stackScale;
-      if (stackTarget > 0 && clusterWidth(glyph) === 1 && glyph !== " ") {
-        let marks = Math.floor(stackTarget);
-        if (deriveUnit(seed, "z", r, cellsUsed) < stackTarget - marks) marks++;
-        for (let m = 0; m < marks; m++) {
-          glyph += ZALGO_MARKS[Math.floor(deriveUnit(seed, "zm", r, cellsUsed, m) * ZALGO_MARKS.length)]!;
-        }
-      }
+      glyph = applyStack(glyph, v.stackDepth * stackScale, seed, r, cellsUsed);
 
       const width = clusterWidth(glyph);
       if (cellsUsed + width > W) {

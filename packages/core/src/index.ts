@@ -42,6 +42,17 @@ export {
   replay,
 } from "./log.js";
 export type { GubbleDoc, DocHeader, Op, OpKind, GridDefinition } from "./log.js";
+export { weightedPick, applyStack, ZALGO_MARKS } from "./draw.js";
+export {
+  bilinearWeights,
+  mixVectors,
+  applyEffects,
+  cellDraw,
+  kitFill,
+  NEUTRAL_EFFECTS,
+} from "./mixer.js";
+export type { Kit, Corners, EffectState, MixedVector } from "./mixer.js";
+export { encodeKitUrl, decodeKitUrl } from "./kit.js";
 
 // Not here yet, and deliberately not faked in the meantime:
 //   - image census (§7.3 luminance + k-means chroma) — v1 job, next

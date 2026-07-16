@@ -14,6 +14,8 @@ import { RNG_ID } from "./prng.js";
 import { mintDocSeed } from "./seed.js";
 import { MEASURE_ID, clusterWidth } from "./width.js";
 import { CellBuffer } from "./buffer.js";
+import { weightedPick, applyStack } from "./draw.js";
+import { kitFill, type Kit } from "./mixer.js";
 import type { Ductus } from "./ductus.js";
 
 /**
@@ -125,30 +127,24 @@ export function forkDocument(doc: GubbleDoc, at: number, parentUrl: string | nul
 
 // ─── op handlers ────────────────────────────────────────────────────────
 
-// A small standing set of combining marks for expressing stackDepth in
-// fills — same expression vocabulary as the specimen renderer.
-const ZALGO_MARKS = ["́", "̀", "̂", "̃", "̄", "̆", "̇", "̈", "̊", "̵", "̶"];
-
-function weightedPick(glyphs: string[], weights: number[], roll: number): string {
-  const total = weights.reduce((a, b) => a + b, 0);
-  let target = roll * total;
-  for (let i = 0; i < glyphs.length; i++) {
-    target -= weights[i]!;
-    if (target < 0) return glyphs[i]!;
-  }
-  return glyphs[glyphs.length - 1] ?? " ";
-}
-
 /**
- * The page fill: gubble's first real mark-making op. Unlike the
- * specimen's row-composed sweeps, this is PURE per-cell random access —
- * hash(opSeed ‖ cellIndex ‖ facet) and nothing else (§4.3). Any cell is
- * recomputable alone; no cell knows its neighbors. (Run-length
- * personality, which IS sequential, gets expressed here differently:
- * as a per-cell probability of copying the deterministic glyph of the
- * cell to the left — computed, not remembered. Same shimmer, no state.)
+ * The page fill: gubble's first real mark-making op. Two arg shapes:
+ * `{ductus}` — single-aesthetic fill (a kit of one, effectively), and
+ * `{kit}` — the mixer (§10), which delegates to mixer.ts. Both are PURE
+ * per-cell random access — hash(opSeed ‖ cellIndex ‖ facet) and nothing
+ * else (§4.3). Any cell is recomputable alone; no cell knows its
+ * neighbors. (Run-length personality, which IS sequential, gets
+ * expressed as a per-cell probability of copying the deterministic
+ * glyph of the cell to the left — computed, not remembered. Same
+ * shimmer, no state.)
  */
-function applyFill(buffer: CellBuffer, op: Op): void {
+function applyFill(buffer: CellBuffer, op: Op, frame: number): void {
+  const kit = op.args["kit"] as Kit | undefined;
+  if (kit) {
+    kitFill(buffer, kit, op.seed, op.i, { frame });
+    return;
+  }
+
   const ductus = op.args["ductus"] as Ductus | undefined;
   if (!ductus || ductus.palette.glyphs.length === 0) return;
   const { glyphs, weights } = ductus.palette;
@@ -174,17 +170,13 @@ function applyFill(buffer: CellBuffer, op: Op): void {
           ? drawFor(cellIndex - 1)
           : drawFor(cellIndex);
 
-      // Zalgo expression from the vector, per-cell.
-      if (v.stackDepth > 0 && glyph !== " " && clusterWidth(glyph) === 1) {
-        let marks = Math.floor(v.stackDepth);
-        if (deriveUnit(op.seed, cellIndex, "z") < v.stackDepth - marks) marks++;
-        for (let m = 0; m < marks; m++) {
-          glyph += ZALGO_MARKS[Math.floor(deriveUnit(op.seed, cellIndex, "zm", m) * ZALGO_MARKS.length)]!;
-        }
-      }
+      // Zalgo expression from the vector, per-cell (shared vocabulary
+      // with the mixer and specimen — draw.ts).
+      glyph = applyStack(glyph, v.stackDepth, op.seed, cellIndex);
 
       // set() refuses wide glyphs at the right edge — that refusal is
       // deterministic too, so it's part of the composition, not a bug.
+      if (clusterWidth(glyph) === 2 && c + 1 >= buffer.cols) continue;
       buffer.set(r, c, glyph, { aes: ductus.id, op: op.i });
     }
   }
@@ -196,9 +188,14 @@ function applyFill(buffer: CellBuffer, op: Op): void {
  * drift out of sync. If you want the picture, you replay the history.
  * That's not an implementation detail; it's the ontology (Directive 2).
  */
-export function replay(doc: GubbleDoc): CellBuffer {
+export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffer {
   let def = doc.header.definition;
   let buffer = new CellBuffer(def.cols, def.rows);
+  // The flutter frame (§4.3, §9 PHASE): time as an integer someone hands
+  // us — the app's animation loop, or a `?f=` param freezing a shimmer
+  // MID-shimmer. Never a clock. Cells that PHASE doesn't select ignore
+  // it entirely, so a frame change only moves the cells that breathe.
+  const frame = opts.frame ?? 0;
 
   for (const op of doc.ops) {
     switch (op.op) {
@@ -209,7 +206,7 @@ export function replay(doc: GubbleDoc): CellBuffer {
         break;
       }
       case "fill":
-        applyFill(buffer, op);
+        applyFill(buffer, op, frame);
         break;
       // Unknown ops from a future gubble replay as no-ops rather than
       // crashes — an old reader shows you what it CAN of a newer

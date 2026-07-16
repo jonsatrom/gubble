@@ -122,6 +122,24 @@ change, the ductus drifts as the material grows:
 ./gubble link aesthetics/YOUR-NAME/ductus.json
 ```
 
+## 3½. The mixer (M2 — the instrument's first sound)
+
+```bash
+# 2–4 corners, one puck. Corner order: a=top-left, b=top-right,
+# c=bottom-left, d=bottom-right. The puck LEANS; everybody bleeds:
+./gubble mix aesthetics/cultcow/ductus.json aesthetics/myspace-swirl/ductus.json \
+  aesthetics/gradient-blocks/ductus.json --puck 0.3,0.8 --seed m00f
+
+# effects, live at page scope (§9): density gain, grain re-voice, phase:
+./gubble mix aesthetics/cultcow/ductus.json aesthetics/gradient-blocks/ductus.json \
+  --puck 0.5,0.5 --density -0.6 --phase 0.7 --frame 42
+# ...then change ONLY --frame: the fluttering cells move, the stable
+# ones hold. --phase 0 makes --frame irrelevant. That's §4.3 working.
+
+# the whole patch as a URL (§10: the kit IS the patch file):
+./gubble mix a.json b.json --puck 0.2,0.9 --link
+```
+
 ## 4. Things worth knowing before they surprise you
 
 - **Your middens are NOT in git.** `sources/` and `corpus.txt` are

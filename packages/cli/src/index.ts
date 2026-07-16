@@ -21,9 +21,13 @@ import {
   truncate,
   replay,
   mintDocSeed,
+  encodeKitUrl,
+  NEUTRAL_EFFECTS,
   type Ductus,
   type CensusStats,
   type GrainAffinity,
+  type Kit,
+  type Corners,
 } from "@gubble/core";
 import { parseManifest, type Manifest } from "./manifest.js";
 import { readMidden, defaultName } from "./folder.js";
@@ -50,6 +54,15 @@ const HELP = `
         forever (pipe two runs to diff and watch nothing happen).
         --undo appends a second fill then truncates it away, printing
         both states — undo as log truncation, demonstrated.
+
+    gubble mix <a.json> <b.json> [c.json] [d.json] --puck X,Y
+               [--density -1..1] [--grain -1..1] [--phase 0..1]
+               [--frame N] [--width N] [--height N] [--seed HEX] [--link]
+        the MIXER (M2), in a terminal: corners are [a=top-left,
+        b=top-right, c=bottom-left, d=bottom-right], the puck leans,
+        everybody bleeds. --frame freezes a shimmer mid-shimmer
+        (only matters when --phase > 0). --link prints the whole
+        patch as a ?k= URL instead of the page.
 
   the folder format, the worldview, and every design fight worth having:
   GUBBLE-SPEC.md. gubble gubble.
@@ -276,6 +289,58 @@ async function main(): Promise<void> {
         console.log(replay(undone).toText());
         console.log(`\n  the undone page is byte-identical to the first: ${replay(undone).toText() === replay(truncate(doc, 1)).toText() ? "✓" : "✗ (file a bug, loudly)"}`);
       }
+      break;
+    }
+
+    case "mix": {
+      // Corners from positional args: target + up to 3 more ductus paths
+      // before the first --flag.
+      const cornerPaths = [target, ...rest.filter((a, i) => !a.startsWith("--") && !(i > 0 && rest[i - 1]!.startsWith("--")))].slice(0, 4);
+      const loaded = cornerPaths.map((p) => {
+        const full = resolve(p);
+        if (!existsSync(full)) fail(`${p}: no such ductus.json`);
+        return JSON.parse(readFileSync(full, "utf8")) as Ductus;
+      });
+      if (loaded.length < 2) fail("mix wants at least 2 corners (up to 4)");
+      const corners: Corners = [loaded[0] ?? null, loaded[1] ?? null, loaded[2] ?? null, loaded[3] ?? null];
+
+      const puckRaw = flagValue(rest, "--puck") ?? "0.5,0.5";
+      const [px, py] = puckRaw.split(",").map(Number);
+      if (px === undefined || py === undefined || Number.isNaN(px) || Number.isNaN(py)) {
+        fail(`--puck wants X,Y like 0.3,0.7 — got "${puckRaw}"`);
+      }
+
+      const kitObj: Kit = {
+        corners,
+        puck: { x: px!, y: py! },
+        effects: {
+          density: Number(flagValue(rest, "--density") ?? NEUTRAL_EFFECTS.density),
+          grain: Number(flagValue(rest, "--grain") ?? NEUTRAL_EFFECTS.grain),
+          phase: Number(flagValue(rest, "--phase") ?? NEUTRAL_EFFECTS.phase),
+        },
+      };
+
+      if (rest.includes("--link")) {
+        const url = await encodeKitUrl(kitObj, flagValue(rest, "--origin"));
+        console.log(`\n  ${url}\n`);
+        console.log(`  the patch file IS the URL (§10) — corners travel inline, no registry needed\n`);
+        break;
+      }
+
+      const cols = flagValue(rest, "--width") ? Number(flagValue(rest, "--width")) : 80;
+      const rows = flagValue(rest, "--height") ? Number(flagValue(rest, "--height")) : 24;
+      const frame = flagValue(rest, "--frame") ? Number(flagValue(rest, "--frame")) : 0;
+      const seed = flagValue(rest, "--seed") ?? mintDocSeed();
+
+      const doc = createDocument({ cols, rows }, seed);
+      appendOp(doc, { op: "fill", scope: { kind: "page" }, args: { kit: kitObj } });
+      console.log(replay(doc, { frame }).toText());
+      console.log(
+        `\n  puck ${px},${py} · corners [${loaded.map((d) => d.name).join(" · ")}]` +
+          ` · fx d${kitObj.effects.density} g${kitObj.effects.grain} p${kitObj.effects.phase}` +
+          (kitObj.effects.phase > 0 ? ` · frame ${frame}` : ""),
+      );
+      console.log(`  reproduce: --seed ${seed}${kitObj.effects.phase > 0 ? ` --frame ${frame}` : ""}\n`);
       break;
     }
 
