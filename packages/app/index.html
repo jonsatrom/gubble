@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>gubble</title>
+  <style>
+    /* Minimal chrome (§18): the instrument should feel close-to-metal,
+       not ceremonial. Dark room, one glowing page. */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0e0e11; --panel: #16161b; --line: #2a2a33;
+      --text: #d8d8e0; --dim: #71717d; --hot: #ff9de2;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+      height: 100vh; display: flex; overflow: hidden;
+    }
+
+    /* ── rail (§10): chips render themselves as their own label ── */
+    #rail {
+      width: 190px; border-right: 1px solid var(--line); background: var(--panel);
+      padding: 10px 8px; overflow-y: auto; flex-shrink: 0;
+    }
+    #rail h1 { font-size: 14px; letter-spacing: 3px; color: var(--hot); margin-bottom: 10px; }
+    #rail .hint { color: var(--dim); font-size: 11px; margin-bottom: 12px; }
+    .chip {
+      border: 1px solid var(--line); border-radius: 4px; padding: 6px;
+      margin-bottom: 8px; cursor: grab; background: var(--bg);
+      overflow: hidden; white-space: nowrap;
+    }
+    .chip:active { cursor: grabbing; }
+    .chip .self { font-size: 12px; }        /* the aesthetic speaking as itself */
+    .chip .id { color: var(--dim); font-size: 10px; }
+
+    /* ── the page ── */
+    #stage { flex: 1; display: grid; place-items: center; overflow: auto; }
+    #grid { image-rendering: pixelated; }
+    /* The mirror: real characters, always — offscreen but real. Copy
+       reads THIS, never the canvas (§5.1). */
+    #mirror { position: absolute; left: -200vw; top: 0; }
+
+    /* ── controls ── */
+    #controls {
+      width: 240px; border-left: 1px solid var(--line); background: var(--panel);
+      padding: 12px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;
+      overflow-y: auto;
+    }
+    #pad {
+      position: relative; width: 100%; aspect-ratio: 1;
+      border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
+      touch-action: none;
+    }
+    .corner {
+      position: absolute; width: 44%; height: 30%;
+      border: 1px dashed var(--line); border-radius: 3px;
+      font-size: 9px; color: var(--dim); padding: 3px;
+      overflow: hidden; white-space: nowrap;
+    }
+    .corner.filled { border-style: solid; color: var(--text); }
+    .corner.over { border-color: var(--hot); }
+    #c0 { top: 3px; left: 3px; } #c1 { top: 3px; right: 3px; }
+    #c2 { bottom: 3px; left: 3px; } #c3 { bottom: 3px; right: 3px; }
+    #puck {
+      position: absolute; width: 14px; height: 14px; border-radius: 50%;
+      background: var(--hot); transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px var(--hot); pointer-events: none;
+    }
+    label { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; }
+    input[type="range"] { width: 100%; accent-color: var(--hot); }
+    .row { display: flex; gap: 6px; }
+    button {
+      flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+      border-radius: 4px; padding: 7px 4px; font: inherit; font-size: 11px;
+      letter-spacing: 1px; cursor: pointer;
+    }
+    button:hover { border-color: var(--hot); color: var(--hot); }
+    #readout { color: var(--dim); font-size: 10px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <aside id="rail">
+    <h1>GUBBLE</h1>
+    <div class="hint">drag an aesthetic onto a pad corner. the puck leans; everybody bleeds.</div>
+    <!-- chips injected by main.ts -->
+  </aside>
+
+  <main id="stage">
+    <canvas id="grid"></canvas>
+    <pre id="mirror"></pre>
+  </main>
+
+  <section id="controls">
+    <div id="pad">
+      <div class="corner" id="c0" data-k="0"></div>
+      <div class="corner" id="c1" data-k="1"></div>
+      <div class="corner" id="c2" data-k="2"></div>
+      <div class="corner" id="c3" data-k="3"></div>
+      <div id="puck"></div>
+    </div>
+    <div>
+      <label>density <span id="v-density">0</span></label>
+      <input type="range" id="fx-density" min="-1" max="1" step="0.01" value="0" />
+      <label>grain <span id="v-grain">0</span></label>
+      <input type="range" id="fx-grain" min="-1" max="1" step="0.01" value="0" />
+      <label>phase <span id="v-phase">0</span></label>
+      <input type="range" id="fx-phase" min="0" max="1" step="0.01" value="0" />
+    </div>
+    <div class="row">
+      <button id="stamp" title="commit this kit to the log as a fill op">STAMP</button>
+      <button id="undo" title="undo = log truncation. no eraser, just less history">UNDO</button>
+    </div>
+    <div class="row">
+      <button id="copy" title="copies the pre mirror — real characters, always">COPY TXT</button>
+      <button id="reseed" title="new document, new docSeed — the one sanctioned dice roll">RESEED</button>
+    </div>
+    <div id="readout"></div>
+  </section>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

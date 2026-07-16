@@ -2,8 +2,18 @@
   "name": "@gubble/app",
   "version": "0.0.0",
   "private": true,
-  "description": "The instrument. Vite, minimal chrome, GRID + FLOW. Arrives at M2 (spec §17) — this package is a placeholder so the workspace shape exists before the code does.",
+  "type": "module",
+  "description": "The instrument. GRID + mixer at M2: canvas render with a <pre> mirror as the copy source of truth, XY pad, rail, density/grain/phase live.",
   "scripts": {
-    "build": "echo '@gubble/app arrives at M2 — see GUBBLE-SPEC.md §17' && exit 0"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@gubble/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
   }
 }

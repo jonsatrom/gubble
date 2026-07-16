@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gubble-app",
+      "runtimeExecutable": "/Users/jon/.nvm/versions/node/v20.19.4/bin/npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@gubble/app", "--", "--port", "5199", "--strictPort"],
+      "port": 5199,
+      "env": {
+        "PATH": "/Users/jon/.nvm/versions/node/v20.19.4/bin:/usr/bin:/bin"
+      }
+    }
+  ]
+}

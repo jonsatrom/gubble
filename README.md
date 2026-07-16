@@ -49,8 +49,20 @@ gubble/
     cli/     @gubble/cli    — LIVE. compile (+ --watch) / census /
                                specimen / link, zero deps beyond core +
                                node builtins. See FEEDING.md.
-    app/     @gubble/app    — placeholder only. Arrives at M2. See its
-                               own README for why that's not a bug.
+    app/     @gubble/app    — ALIVE (M2). Vite + vanilla TS: GRID canvas
+                               with a <pre> mirror as the copy source of
+                               truth, XY pad + puck, rail chips that
+                               render themselves as their own labels,
+                               density/grain/phase live, PHASE flutter
+                               loop, STAMP/UNDO straight onto the event
+                               log. Preview honesty: the live preview
+                               fills with the seed the next op WILL get,
+                               so what you see is byte-identical to what
+                               STAMP commits. Run: `npm run dev
+                               --workspace=@gubble/app`.
+                               Not yet: corner-swap ~2s crossfade (§10),
+                               drag-chip-out-copies-URL, kit-URL
+                               share/load in the UI.
   aesthetics/                — two compiled examples: gradient-blocks
                                (the ramp promoted to aesthetic) and
                                myspace-swirl (corpus-bearing, profile-core
