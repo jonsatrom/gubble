@@ -24,7 +24,7 @@ aesthetics rather than read architecture.
 ```
 gubble/
   packages/
-    core/    @gubble/core   — framework-free TS, all tested (66/66):
+    core/    @gubble/core   — framework-free TS, all tested (80/80):
                                PRNG (sfc32) · hash (FNV-1a) · seed
                                minting · cell-width math over a vendored
                                frozen Unicode 16.0 snapshot (`measure:
@@ -33,14 +33,19 @@ gubble/
                                ramp · the census (§7.3) · ductus build +
                                content-derived ids (§7.2) · two-sweep
                                specimen renderer (§7.4) · aesthetic-as-URL
-                               deflate encoding (§12).
+                               deflate encoding (§12) · the EVENT LOG
+                               (§4: state = replay(ops), undo = truncation,
+                               fork-at with lineage — Directive 2 is now
+                               executable, M1 reached) · cell buffer with
+                               per-cell provenance (§14.1, ships v1 as
+                               argued).
                                KNOWN GAP, documented in width.ts: grapheme
                                CLUSTER BOUNDARIES still come from the host
                                engine's Intl.Segmenter/ICU — a real,
                                unclosed Directive 1 crack, not pretended
                                away.
-                               NOT YET: event log/replay (M1), cell
-                               buffer, image census.
+                               NOT YET: image census, mixer/kits (M2),
+                               effects (M2), selection scopes (M4).
     cli/     @gubble/cli    — LIVE. compile (+ --watch) / census /
                                specimen / link, zero deps beyond core +
                                node builtins. See FEEDING.md.

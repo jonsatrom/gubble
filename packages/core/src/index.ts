@@ -32,10 +32,20 @@ export type { Ductus, GrainAffinity, BuildDuctusOptions } from "./ductus.js";
 export { renderSpecimen } from "./specimen.js";
 export type { SpecimenOptions } from "./specimen.js";
 export { encodePayload, decodePayload, encodeDuctusUrl, decodeDuctusUrl } from "./url.js";
+export { CellBuffer } from "./buffer.js";
+export type { Cell, Provenance } from "./buffer.js";
+export {
+  createDocument,
+  appendOp,
+  truncate,
+  forkDocument,
+  replay,
+} from "./log.js";
+export type { GubbleDoc, DocHeader, Op, OpKind, GridDefinition } from "./log.js";
 
 // Not here yet, and deliberately not faked in the meantime:
-//   - log.ts (§4 event log + replay) — the actual "state = replay(ops)"
-//     machinery. M1. The CLI doesn't need it; the instrument will.
 //   - image census (§7.3 luminance + k-means chroma) — v1 job, next
 //     pass. The CLI warns when it finds images rather than skipping
 //     them silently.
+//   - mixer math / kits (M2), effects (M2), selection scopes (M4),
+//     .gbbl packaging + doc-as-URL (M5).
