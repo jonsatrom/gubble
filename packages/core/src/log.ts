@@ -15,7 +15,9 @@ import { mintDocSeed } from "./seed.js";
 import { MEASURE_ID, clusterWidth } from "./width.js";
 import { CellBuffer } from "./buffer.js";
 import { weightedPick, applyStack } from "./draw.js";
-import { kitFill, type Kit } from "./mixer.js";
+import { kitFill, cellDraw, type Kit } from "./mixer.js";
+import { mistranscode, redactGlyph, invertGlyph, posterizeGlyph } from "./corrupt.js";
+import { segmentGraphemes } from "./width.js";
 import type { Ductus } from "./ductus.js";
 
 /**
@@ -42,7 +44,18 @@ export interface DocHeader {
 }
 
 /** v1 op names land incrementally with their features; these exist today. */
-export type OpKind = "setDefinition" | "fill";
+export type OpKind = "setDefinition" | "fill" | "select" | "clearSelect" | "applyOnce";
+
+/**
+ * A linear selection (§11): text-editor semantics over the grid —
+ * reading-order cell indices, inclusive. Shape and lasso arrive at v2
+ * with brushes; sections are persisted selections and arrive with
+ * controllers (M4's back half).
+ */
+export interface SelectionRange {
+  from: number;
+  to: number;
+}
 
 export interface Op {
   /** index; also the fork/graft address */
@@ -53,7 +66,7 @@ export interface Op {
    */
   t: number;
   op: OpKind;
-  scope: { kind: "page" }; // section/selection scopes arrive at M4
+  scope: { kind: "page" | "selection" };
   args: Record<string, unknown>;
   /** derived: hash(docSeed ‖ i) — every op gets its own reproducible stream */
   seed: string;
@@ -182,6 +195,80 @@ function applyFill(buffer: CellBuffer, op: Op, frame: number): void {
   }
 }
 
+export type ApplyVerb = "redact" | "invert" | "posterize" | "mistranscode" | "fillWith";
+
+/**
+ * The applyOnce verbs (§11), acting on the current selection. Every one
+ * is deterministic; the interesting one is mistranscode, whose output
+ * is LONGER than its input (multibyte glyphs explode into one char per
+ * byte), so the corrupted text is re-typed through the selection in
+ * reading order and truncates at the range's end — the region eats as
+ * much of its own corruption as it has room for. Real pipelines do the
+ * same thing. Cells the re-type doesn't reach keep their old glyphs.
+ */
+function applyOnce(buffer: CellBuffer, op: Op, selection: SelectionRange | null): void {
+  if (!selection) return; // a verb with nothing selected is a shrug
+  const verb = op.args["verb"] as ApplyVerb | undefined;
+  if (!verb) return;
+  const lo = Math.max(0, Math.min(selection.from, selection.to));
+  const hi = Math.min(buffer.cols * buffer.rows - 1, Math.max(selection.from, selection.to));
+  const prov = { aes: `⌁${verb}`, op: op.i }; // provenance speaks the verb's name
+
+  if (verb === "fillWith") {
+    // The mixer, scoped (§9: effects and fills are scope-agnostic —
+    // this is the same cellDraw the page fill uses, fenced to the range).
+    const kit = op.args["kit"] as Kit | undefined;
+    if (!kit) return;
+    for (let idx = lo; idx <= hi; idx++) {
+      const r = Math.floor(idx / buffer.cols);
+      const c = idx % buffer.cols;
+      const { glyph, corner } = cellDraw(kit, op.seed, idx, {});
+      if (glyph === " ") continue;
+      // set() refuses wide glyphs at the right edge deterministically —
+      // same composition rule as the page fill.
+      buffer.set(r, c, glyph, corner ? { aes: corner.id, op: op.i } : prov);
+    }
+    return;
+  }
+
+  if (verb === "mistranscode") {
+    // Gather the selection's text, corrupt its bytes, re-type the result.
+    let source = "";
+    for (let idx = lo; idx <= hi; idx++) {
+      const cell = buffer.get(Math.floor(idx / buffer.cols), idx % buffer.cols);
+      if (cell.glyph !== "") source += cell.glyph;
+    }
+    const corrupted = segmentGraphemes(mistranscode(source));
+    let cursor = 0;
+    for (let idx = lo; idx <= hi && cursor < corrupted.length; idx++) {
+      const r = Math.floor(idx / buffer.cols);
+      const c = idx % buffer.cols;
+      if (buffer.get(r, c).glyph === "") continue; // continuation cells stay claimed
+      buffer.set(r, c, corrupted[cursor]!, prov);
+      cursor++;
+    }
+    return;
+  }
+
+  for (let idx = lo; idx <= hi; idx++) {
+    const r = Math.floor(idx / buffer.cols);
+    const c = idx % buffer.cols;
+    const cell = buffer.get(r, c);
+    if (cell.glyph === "") continue;
+    const glyph =
+      verb === "redact"
+        ? redactGlyph(op.seed, idx)
+        : verb === "invert"
+          ? invertGlyph(cell.glyph)
+          : posterizeGlyph(cell.glyph);
+    if (glyph === " ") {
+      buffer.set(r, c, " ", null);
+    } else {
+      buffer.set(r, c, glyph, prov);
+    }
+  }
+}
+
 /**
  * State = replay(ops). The only way to get a buffer from a document —
  * there is no setter API on documents, no "current state" field to
@@ -196,6 +283,11 @@ export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffe
   // MID-shimmer. Never a clock. Cells that PHASE doesn't select ignore
   // it entirely, so a frame change only moves the cells that breathe.
   const frame = opts.frame ?? 0;
+  // Selection is replay STATE (§11): select/clearSelect are logged ops,
+  // so playback will someday show selections happening — they're
+  // performance gestures, part of the document's biography, not UI
+  // ephemera. applyOnce reads whatever selection history left standing.
+  let selection: SelectionRange | null = null;
 
   for (const op of doc.ops) {
     switch (op.op) {
@@ -207,6 +299,15 @@ export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffe
       }
       case "fill":
         applyFill(buffer, op, frame);
+        break;
+      case "select":
+        selection = (op.args["range"] as SelectionRange | undefined) ?? null;
+        break;
+      case "clearSelect":
+        selection = null;
+        break;
+      case "applyOnce":
+        applyOnce(buffer, op, selection);
         break;
       // Unknown ops from a future gubble replay as no-ops rather than
       // crashes — an old reader shows you what it CAN of a newer

@@ -41,7 +41,8 @@ export {
   forkDocument,
   replay,
 } from "./log.js";
-export type { GubbleDoc, DocHeader, Op, OpKind, GridDefinition } from "./log.js";
+export type { GubbleDoc, DocHeader, Op, OpKind, GridDefinition, SelectionRange, ApplyVerb } from "./log.js";
+export { mistranscode, redactGlyph, invertGlyph, posterizeGlyph } from "./corrupt.js";
 export { weightedPick, applyStack, ZALGO_MARKS } from "./draw.js";
 export {
   bilinearWeights,

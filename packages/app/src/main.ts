@@ -64,6 +64,14 @@ let regime: FlowRegime = "vw";
 let fontPx = 15;
 let flowCursor: FlowCursor | null = null;
 
+// ── selection state (M4) ───────────────────────────────────────────────
+// The app mirrors what the log's replay state will hold — the LOGGED
+// select op (one per completed gesture, per §4.1's coalescing rule) is
+// the truth; this is just the live-drag preview of it.
+let selAnchor: number | null = null; // cell index where the drag started
+let selHead: number | null = null; // cell index under the pointer now
+let selecting = false;
+
 // Corner-swap crossfade (§10): swaps are performable moves, not menu
 // operations. When a corner changes, the page dissolves toward the new
 // material over ~2s — per-cell, seeded (WHICH cells flip early is
@@ -274,6 +282,17 @@ function render(): void {
     }
     mirrorLines.push(line.replace(/\s+$/, ""));
   }
+
+  // Selection highlight: reading-order range, text-editor style (§11).
+  if (selAnchor !== null && selHead !== null) {
+    const lo = Math.min(selAnchor, selHead);
+    const hi = Math.max(selAnchor, selHead);
+    ctx.fillStyle = "rgba(255, 157, 226, 0.16)";
+    for (let idx = lo; idx <= hi; idx++) {
+      ctx.fillRect((idx % COLS) * CELL_W, Math.floor(idx / COLS) * CELL_H, CELL_W, CELL_H);
+    }
+  }
+
   // The mirror is the copy/export source of truth (§5.1): what you copy
   // is real characters, always — the canvas is just a fast opinion of it.
   mirror.textContent = mirrorLines.join("\n");
@@ -540,6 +559,68 @@ flowCanvas.addEventListener("pointerleave", () => {
   flowCursor = null;
   render();
 });
+
+// ── drag-select on GRID (M4, "like a text editor DUH") ────────────────
+function cellAt(e: PointerEvent): number {
+  const rect = canvas.getBoundingClientRect();
+  const c = Math.max(0, Math.min(COLS - 1, Math.floor((e.clientX - rect.left) / CELL_W)));
+  const r = Math.max(0, Math.min(ROWS - 1, Math.floor((e.clientY - rect.top) / CELL_H)));
+  return r * COLS + c;
+}
+
+canvas.addEventListener("pointerdown", (e) => {
+  selecting = true;
+  try {
+    canvas.setPointerCapture(e.pointerId);
+  } catch {
+    // synthetic events carry pointer ids the browser never registered —
+    // capture is a nicety, not a requirement
+  }
+  selAnchor = selHead = cellAt(e);
+  render();
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!selecting) return;
+  selHead = cellAt(e);
+  render();
+});
+canvas.addEventListener("pointerup", (e) => {
+  if (!selecting) return;
+  selecting = false;
+  selHead = cellAt(e);
+  if (selAnchor === selHead) {
+    // A click is a clearSelect — same as any text editor.
+    if (doc.ops.some((op) => op.op === "select")) {
+      appendOp(doc, { op: "clearSelect", scope: { kind: "selection" }, args: {} });
+    }
+    selAnchor = selHead = null;
+    $("#verbs").style.display = "none";
+  } else {
+    // One logged op per completed gesture (§4.1 coalescing) — the drag
+    // itself was ephemeral preview; the release is history.
+    appendOp(doc, {
+      op: "select",
+      scope: { kind: "selection" },
+      args: { range: { from: selAnchor!, to: selHead } },
+    });
+    $("#verbs").style.display = "";
+  }
+  render();
+});
+
+for (const verb of ["redact", "mistranscode", "invert", "posterize", "fillWith"] as const) {
+  $(`#vb-${verb}`).addEventListener("click", () => {
+    appendOp(doc, {
+      op: "applyOnce",
+      scope: { kind: "selection" },
+      args:
+        verb === "fillWith"
+          ? { verb, kit: JSON.parse(JSON.stringify(kit)) as Kit }
+          : { verb },
+    });
+    render();
+  });
+}
 
 // ── PHASE: the flutter loop ────────────────────────────────────────────
 // Time enters as an integer frame counter, never a clock (§4.3). ~10fps
