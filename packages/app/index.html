@@ -77,6 +77,12 @@
     }
     button:hover { border-color: var(--hot); color: var(--hot); }
     button.active { border-color: var(--hot); color: var(--hot); background: #241722; }
+    input[type="text"], #loadurl {
+      flex: 1; min-width: 0; background: var(--bg); color: var(--text);
+      border: 1px solid var(--line); border-radius: 4px; padding: 6px;
+      font: inherit; font-size: 11px;
+    }
+    #loadurl:focus { outline: none; border-color: var(--hot); }
     #readout { color: var(--dim); font-size: 10px; word-break: break-all; }
   </style>
 </head>
@@ -118,6 +124,11 @@
     </div>
     <div class="row">
       <button id="strata" title="tint cells by op age instead of aesthetic — the sediment, made legible (§14.1's inspector, first face)">STRATA</button>
+      <button id="sharekit" title="the kit IS the patch file; the URL is the patch file format (§10)">SHARE KIT</button>
+    </div>
+    <div class="row">
+      <input id="loadurl" placeholder="paste a ?k= or ?a= url" spellcheck="false" />
+      <button id="load" style="flex: 0 0 auto; padding: 7px 10px;">LOAD</button>
     </div>
     <div id="readout"></div>
   </section>

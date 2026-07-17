@@ -15,6 +15,10 @@ import {
   deriveSeed,
   kitFill,
   NEUTRAL_EFFECTS,
+  encodeDuctusUrl,
+  decodeDuctusUrl,
+  encodeKitUrl,
+  decodeKitUrl,
   type GubbleDoc,
   type Kit,
   type Corners,
@@ -30,7 +34,13 @@ import gradientBlocks from "../../../aesthetics/gradient-blocks/ductus.json";
 import myspaceSwirl from "../../../aesthetics/myspace-swirl/ductus.json";
 import cultcow from "../../../aesthetics/cultcow/ductus.json";
 
-const LIBRARY = [gradientBlocks, myspaceSwirl, cultcow] as unknown as Ductus[];
+// Mutable on purpose: aesthetics arriving as ?a= URLs dock here as
+// guests — the rail grows by link, no registry, no gate (Directive 5).
+const LIBRARY: Ductus[] = [gradientBlocks, myspaceSwirl, cultcow] as unknown as Ductus[];
+
+// Each chip's aesthetic-as-URL, precomputed so drag-out can carry it.
+const chipUrl = new Map<string, string>();
+for (const d of LIBRARY) void encodeDuctusUrl(d).then((u) => chipUrl.set(d.id, u));
 
 // ── state ──────────────────────────────────────────────────────────────
 const COLS = 96;
@@ -44,6 +54,21 @@ const kit: Kit = {
 };
 let frame = 0;
 let strataView = false;
+
+// Corner-swap crossfade (§10): swaps are performable moves, not menu
+// operations. When a corner changes, the page dissolves toward the new
+// material over ~2s — per-cell, seeded (WHICH cells flip early is
+// deterministic; performance.now() only paces the sweep, same rule as
+// op.t). The kit's truth is the DESTINATION from the moment of the
+// drop: a STAMP mid-crossfade commits where you're going, not where
+// you've theatrically been.
+interface CornerSwap {
+  k: number;
+  from: Ductus | null;
+  start: number;
+}
+let cornerSwap: CornerSwap | null = null;
+const SWAP_MS = 2000;
 
 // ── DOM ────────────────────────────────────────────────────────────────
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
@@ -73,13 +98,31 @@ const swatchOf = new Map<string, string>(
   LIBRARY.map((d) => [d.id, d.color.swatches[0] ?? "#d8d8e0"]),
 );
 
+// The readout doubles as a message line. flash() borrows it for a
+// moment, then gives it back to the facts.
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+function flash(message: string): void {
+  readout.textContent = message;
+  if (flashTimer) clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => {
+    flashTimer = null;
+    render();
+  }, 2200);
+}
+
 // ── render ─────────────────────────────────────────────────────────────
-function currentBuffer(): CellBuffer {
+function currentBuffer(corners: Corners = kit.corners): CellBuffer {
   // Committed history first…
   const buffer = replay(doc, { frame });
   // …then the pending mark, drawn with the seed the next op WILL get.
-  if (kit.corners.some(Boolean)) {
-    kitFill(buffer, kit, deriveSeed(doc.header.docSeed, doc.ops.length), doc.ops.length, { frame });
+  if (corners.some(Boolean)) {
+    kitFill(
+      buffer,
+      { ...kit, corners },
+      deriveSeed(doc.header.docSeed, doc.ops.length),
+      doc.ops.length,
+      { frame },
+    );
   }
   return buffer;
 }
@@ -101,26 +144,76 @@ function strataColor(opIndex: number, opCount: number): string {
   return `rgb(${mix(cold.r, hot.r)},${mix(cold.g, hot.g)},${mix(cold.b, hot.b)})`;
 }
 
+const smoothstep = (t: number): number => t * t * (3 - 2 * t);
+
 function render(): void {
-  const buffer = currentBuffer();
+  // During a corner swap, two candidate pages exist — where we were and
+  // where we're going — and each cell defects to the new material at its
+  // own seeded moment. The dissolve ORDER is deterministic; only the
+  // sweep's pacing rides the wall clock.
+  let bufferNew = currentBuffer();
+  let bufferOld: CellBuffer | null = null;
+  let swapT = 1;
+  if (cornerSwap) {
+    swapT = smoothstep(Math.min(1, (performance.now() - cornerSwap.start) / SWAP_MS));
+    if (swapT >= 1) {
+      cornerSwap = null;
+    } else {
+      const oldCorners = [...kit.corners] as Corners;
+      oldCorners[cornerSwap.k] = cornerSwap.from;
+      bufferOld = currentBuffer(oldCorners);
+    }
+  }
+
   ctx.fillStyle = "#0e0e11";
   ctx.fillRect(0, 0, COLS * CELL_W, ROWS * CELL_H);
   ctx.font = FONT;
   ctx.textBaseline = "top";
-  for (let r = 0; r < buffer.rows; r++) {
-    for (let c = 0; c < buffer.cols; c++) {
-      const cell = buffer.get(r, c);
-      if (cell.glyph === " " || cell.glyph === "") continue;
+  const mirrorLines: string[] = [];
+
+  for (let r = 0; r < ROWS; r++) {
+    let line = "";
+    let skipNext = false; // set when a wide glyph claims the following cell
+    for (let c = 0; c < COLS; c++) {
+      if (skipNext) {
+        skipNext = false;
+        continue;
+      }
+      // Pick this cell's source buffer: the new page, unless a swap is
+      // mid-dissolve and this cell hasn't defected yet.
+      const source =
+        bufferOld && cornerSwap && deriveUnit(doc.header.docSeed, r * COLS + c, "swap", cornerSwap.k) >= swapT
+          ? bufferOld
+          : bufferNew;
+      const cell = source.get(r, c);
+      if (cell.glyph === "") {
+        // Continuation cell in the chosen source whose head we didn't
+        // draw (the head defected to the other buffer): render as space
+        // rather than resurrecting half a glyph.
+        line += " ";
+        continue;
+      }
+      // A wide head claims its neighbor cell FROM THE SAME SOURCE — no
+      // orphaned halves, even mid-dissolve.
+      if (cell.glyph !== " " && c + 1 < COLS && source.get(r, c + 1).glyph === "") {
+        skipNext = true;
+      }
+      line += cell.glyph;
+      if (cell.glyph === " ") continue;
       ctx.fillStyle = strataView
         ? strataColor(cell.provenance?.op ?? 0, doc.ops.length)
         : (cell.provenance && swatchOf.get(cell.provenance.aes)) || "#d8d8e0";
       ctx.fillText(cell.glyph, c * CELL_W, r * CELL_H + 2);
     }
+    mirrorLines.push(line.replace(/\s+$/, ""));
   }
   // The mirror is the copy/export source of truth (§5.1): what you copy
   // is real characters, always — the canvas is just a fast opinion of it.
-  mirror.textContent = buffer.toText();
+  mirror.textContent = mirrorLines.join("\n");
 
+  if (cornerSwap) requestAnimationFrame(render);
+
+  if (flashTimer) return; // a message is borrowing the readout; facts resume shortly
   readout.textContent =
     `doc ${doc.header.docSeed.slice(0, 8)}… · ${doc.ops.length} op${doc.ops.length === 1 ? "" : "s"}` +
     ` · puck ${kit.puck.x.toFixed(2)},${kit.puck.y.toFixed(2)}` +
@@ -130,7 +223,8 @@ function render(): void {
 
 // ── rail: chips render THEMSELVES as their own label (§10) ────────────
 const rail = $("#rail");
-for (const d of LIBRARY) {
+
+function addChip(d: Ductus): void {
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.draggable = true;
@@ -140,12 +234,42 @@ for (const d of LIBRARY) {
   for (let i = 0; i < 22; i++) {
     self += weightedPick(d.palette.glyphs, d.palette.weights, deriveUnit(d.id, "chip", i));
   }
-  chip.innerHTML = `<div class="self"></div><div class="id">${d.name} · ${d.id}</div>`;
+  chip.innerHTML = `<div class="self"></div><div class="id"></div>`;
   (chip.querySelector(".self") as HTMLElement).textContent = self;
   (chip.querySelector(".self") as HTMLElement).style.color = d.color.swatches[0] ?? "#d8d8e0";
-  chip.addEventListener("dragstart", (e) => e.dataTransfer!.setData("text/gubble-aes", d.id));
+  (chip.querySelector(".id") as HTMLElement).textContent = `${d.name} · ${d.id}`;
+  chip.addEventListener("dragstart", (e) => {
+    e.dataTransfer!.setData("text/gubble-aes", d.id);
+    // Drag OUT copies the aesthetic-URL (§10): the same drag that feeds
+    // a corner, released into any text field, pastes the whole ductus
+    // as a link. The chip is simultaneously material and address.
+    const url = chipUrl.get(d.id);
+    if (url) e.dataTransfer!.setData("text/plain", url);
+  });
+  chip.addEventListener("dragend", (e) => {
+    // Released over nothing at all → the URL goes to the clipboard
+    // instead. A drag that went nowhere still went somewhere.
+    if (e.dataTransfer!.dropEffect === "none") {
+      const url = chipUrl.get(d.id);
+      if (url) {
+        void navigator.clipboard.writeText(url);
+        flash(`${d.name} → clipboard, as a URL. hand it to someone.`);
+      }
+    }
+  });
   rail.appendChild(chip);
 }
+
+/** Dock an aesthetic into the library + rail (startup chips and ?a= guests alike). */
+function dockAesthetic(d: Ductus): void {
+  if (LIBRARY.some((a) => a.id === d.id)) return; // already aboard
+  LIBRARY.push(d);
+  swatchOf.set(d.id, d.color.swatches[0] ?? "#d8d8e0");
+  void encodeDuctusUrl(d).then((u) => chipUrl.set(d.id, u));
+  addChip(d);
+}
+
+for (const d of LIBRARY) addChip(d);
 
 // ── XY pad corners: drop targets ───────────────────────────────────────
 function refreshCorners(): void {
@@ -179,7 +303,12 @@ for (let k = 0; k < 4; k++) {
     el.classList.remove("over");
     const id = (e as DragEvent).dataTransfer!.getData("text/gubble-aes");
     const d = LIBRARY.find((a) => a.id === id) ?? null;
-    kit.corners[k] = d;
+    if (kit.corners[k] !== d) {
+      // The performable move (§10): don't snap — dissolve. State truth
+      // is the destination immediately; the theater is preview-only.
+      cornerSwap = { k, from: kit.corners[k], start: performance.now() };
+      kit.corners[k] = d;
+    }
     refreshCorners();
     render();
   });
@@ -247,6 +376,55 @@ $("#strata").addEventListener("click", () => {
   strataView = !strataView;
   $("#strata").classList.toggle("active", strataView);
   render();
+});
+
+// ── the kit as URL: share out, load in (§10, §12) ─────────────────────
+$("#sharekit").addEventListener("click", () => {
+  void encodeKitUrl(kit).then((url) => {
+    void navigator.clipboard.writeText(url);
+    flash("kit → clipboard. the URL is the patch file.");
+  });
+});
+
+function syncControlsToKit(): void {
+  for (const name of ["density", "grain", "phase"] as const) {
+    const input = $<HTMLInputElement>(`#fx-${name}`);
+    input.value = String(kit.effects[name]);
+    $(`#v-${name}`).textContent = String(kit.effects[name]);
+  }
+  placePuck();
+  refreshCorners();
+}
+
+$("#load").addEventListener("click", () => {
+  const raw = $<HTMLInputElement>("#loadurl").value.trim();
+  if (!raw) return;
+  if (/[#?&]k=/.test(raw)) {
+    void decodeKitUrl(raw)
+      .then((loaded) => {
+        // The whole patch arrives: corners (inline ductuses — dock any
+        // strangers in the rail as guests), puck, effects.
+        for (const d of loaded.corners) if (d) dockAesthetic(d);
+        kit.corners = loaded.corners.map(
+          (d): Ductus | null => (d ? (LIBRARY.find((a) => a.id === d.id) ?? d) : null),
+        ) as Corners;
+        kit.puck = loaded.puck;
+        kit.effects = loaded.effects;
+        syncControlsToKit();
+        render();
+        flash("kit loaded — someone else's lean, your page now.");
+      })
+      .catch(() => flash("that ?k= didn't decode. broken link is broken."));
+  } else if (/[#?&]a=/.test(raw)) {
+    void decodeDuctusUrl<Ductus>(raw)
+      .then((d) => {
+        dockAesthetic(d);
+        flash(`${d.name} docked in the rail — an aesthetic, hand-delivered by URL.`);
+      })
+      .catch(() => flash("that ?a= didn't decode. broken link is broken."));
+  } else {
+    flash("no ?k= or ?a= in that — nothing to load.");
+  }
 });
 
 // ── PHASE: the flutter loop ────────────────────────────────────────────
