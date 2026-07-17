@@ -62,24 +62,36 @@ The API surface that matters for us:
   px-per-mm assumption + print CSS — that part can land with M5's
   freeze/print rather than blocking M3.
 
-## Open questions for Jon (chew before next session)
+## Resolved 2026-07-17 (Jon's answers, between sessions)
 
-1. **What does FLOW re-wrap?** The held position above says: the glyph
-   stream in reading order. But a gubble page is a FIELD, not prose —
-   is reading-order streaming the right violence to do to it? (It
-   might be *exactly* the right violence: re-wrap as deliberate
-   misreading. Or FLOW documents might want to be composed AS streams
-   from the start. Both defensible; pick a first move.)
-2. **fontHints and provenance.** myspace-swirl carries Comic Sans MS
-   in `flow.fontHints`. With `rich-inline`, FLOW could set each
-   glyph's font from its provenance — cow-cells in one face,
-   swirl-cells in Comic Sans, per-cell typographic ancestry. Or:
-   whole-page font from the dominant corner (calmer, faster). The
-   per-provenance version is more gubble; the whole-page version ships
-   sooner. Which first?
-3. **Layout in the app**: GRID/FLOW as a toggle over the same stage, or
-   side-by-side panes (see the same document performed both ways at
-   once)? Side-by-side is a better argument; toggle is less chrome.
+1. **Stream vs. field wasn't actually a dilemma — it maps onto the
+   regimes that already exist.** `chars`/`physical` are literally
+   defined in §6 as "faithful to the text"/"faithful to the page" —
+   that means FLOW keeps GRID's hard line breaks and re-renders them
+   proportionally (`{whiteSpace: 'pre-wrap'}`). No streaming question
+   there at all. `vw` is "the web one" — reflows live, which only
+   means anything if the hard breaks are dropped and the buffer is
+   read as one continuous stream that Pretext free-wraps. So: **stream
+   behavior is `vw`-only**, grid-faithful pre-wrap everywhere else.
+   Ships both, no new philosophy required.
+2. **Fonts: ship the fast version, which is already the aesthetics
+   version.** `ductus.json`'s `flow.fontHints` already exists
+   (myspace-swirl carries `["Comic Sans MS", "cursive"]` today) — so
+   "whole-page font from the dominant corner" (highest bilinear weight
+   at render time) uses infrastructure that's already there. Zero new
+   schema. Per-glyph fonts via `rich-inline` (cow-cells vs. swirl-cells
+   in different faces, keyed by provenance) is the fast-follow
+   experiment once FLOW has a pulse to play with — not a day-one
+   commitment.
+3. **Toggle first, but build it so side-by-side is a "draw twice" away.**
+   Side-by-side is the more on-brand move long-term — it's a live
+   demonstration of §5's actual thesis, one buffer performed two ways
+   at once, updating together as the puck drags. But FLOW is about to
+   be a brand-new renderer needing solo debugging (font-load races,
+   Pretext quirks, bidi meeting the hazard corpus) — toggle keeps the
+   surface small while that shakes out. Both views must read from
+   identical buffer/kit state from the start so upgrading later costs
+   nothing architecturally.
 
 ## Practical checklist for the M3 session
 
