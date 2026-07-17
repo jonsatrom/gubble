@@ -95,10 +95,24 @@
 
   <main id="stage">
     <canvas id="grid"></canvas>
+    <canvas id="flow" style="display: none;"></canvas>
     <pre id="mirror"></pre>
   </main>
 
   <section id="controls">
+    <div class="row">
+      <button id="view-grid" class="active" title="the cell grid — copy-paste-able, scene-compatible, honest (§5.1)">GRID</button>
+      <button id="view-flow" title="the proportional performance — same buffer, different instrument (§5.2)">FLOW</button>
+    </div>
+    <div class="row" id="flow-controls" style="display: none;">
+      <button id="rg-vw" class="active" title="the web one: breaks dissolve, spaces collapse, the field re-wraps live">VW</button>
+      <button id="rg-chars" title="faithful to the text: GRID's line breaks, spoken proportionally">CHARS</button>
+      <button id="rg-physical" title="faithful to the page — full version lands with print (M5); the linked size↔chars readout below is the gesture">PHYS</button>
+    </div>
+    <div id="flow-size" style="display: none;">
+      <label>font <span id="v-fontpx">15px</span> <span id="v-linked"></span></label>
+      <input type="range" id="fontpx" min="8" max="34" step="1" value="15" />
+    </div>
     <div id="pad">
       <div class="corner" id="c0" data-k="0"></div>
       <div class="corner" id="c1" data-k="1"></div>

@@ -30,6 +30,9 @@ import {
 
 // The seed library, imported straight from the repo's aesthetics/
 // folders — the studio and the instrument share one substrate.
+import { renderFlow, ensureFonts, type FlowRegime, type FlowCursor } from "./flow.js";
+import { bilinearWeights } from "@gubble/core";
+
 import gradientBlocks from "../../../aesthetics/gradient-blocks/ductus.json";
 import myspaceSwirl from "../../../aesthetics/myspace-swirl/ductus.json";
 import cultcow from "../../../aesthetics/cultcow/ductus.json";
@@ -54,6 +57,12 @@ const kit: Kit = {
 };
 let frame = 0;
 let strataView = false;
+
+// ── FLOW state (M3) ────────────────────────────────────────────────────
+let view: "grid" | "flow" = "grid";
+let regime: FlowRegime = "vw";
+let fontPx = 15;
+let flowCursor: FlowCursor | null = null;
 
 // Corner-swap crossfade (§10): swaps are performable moves, not menu
 // operations. When a corner changes, the page dissolves toward the new
@@ -146,6 +155,64 @@ function strataColor(opIndex: number, opCount: number): string {
 
 const smoothstep = (t: number): number => t * t * (3 - 2 * t);
 
+// ── FLOW rendering (M3) ────────────────────────────────────────────────
+const flowCanvas = $<HTMLCanvasElement>("#flow");
+const flowCtx = flowCanvas.getContext("2d")!;
+const FLOW_W = COLS * CELL_W; // same stage footprint as GRID
+const FLOW_H = ROWS * CELL_H;
+flowCanvas.width = FLOW_W * dpr;
+flowCanvas.height = FLOW_H * dpr;
+flowCanvas.style.width = `${FLOW_W}px`;
+flowCanvas.style.height = `${FLOW_H}px`;
+flowCtx.scale(dpr, dpr);
+
+/** The corner the puck currently leans hardest into — FLOW speaks in its voice. */
+function dominantCorner(): Ductus | null {
+  const w = bilinearWeights(kit.puck.x, kit.puck.y);
+  let best: Ductus | null = null;
+  let bestW = -1;
+  for (let i = 0; i < 4; i++) {
+    const d = kit.corners[i];
+    if (d && w[i]! > bestW) {
+      bestW = w[i]!;
+      best = d;
+    }
+  }
+  return best;
+}
+
+function fontStackOf(d: Ductus | null): { stack: string; families: string[] } {
+  const hints = d?.flow.fontHints ?? [];
+  const families = hints.map((h) => (/\s/.test(h) ? `"${h}"` : h));
+  // Detritus deserves a serif fallback, not system-ui blandness.
+  families.push("Georgia", "serif");
+  return { stack: families.join(", "), families };
+}
+
+let flowToken = 0; // stale-render guard: only the latest async render lands
+function renderFlowView(text: string): void {
+  const token = ++flowToken;
+  const dom = dominantCorner();
+  const { stack, families } = fontStackOf(dom);
+  void ensureFonts(fontPx, families).then(() => {
+    if (token !== flowToken) return; // superseded while fonts loaded
+    renderFlow(flowCtx, text, {
+      regime,
+      widthPx: FLOW_W,
+      heightPx: FLOW_H,
+      fontPx,
+      fontStack: stack,
+      color: dom?.color.swatches[0] ?? "#d8d8e0",
+      cursor: flowCursor,
+    });
+  });
+  // The inverse-lock readout (§6): at physical width, font size and
+  // char count are one linked value — render it live so the collision
+  // is visible even before print (M5) makes it enforceable.
+  $("#v-linked").textContent =
+    regime === "physical" ? `≈ ${Math.floor(FLOW_W / (fontPx * 0.6))} chars` : "";
+}
+
 function render(): void {
   // During a corner swap, two candidate pages exist — where we were and
   // where we're going — and each cell defects to the new material at its
@@ -210,6 +277,11 @@ function render(): void {
   // The mirror is the copy/export source of truth (§5.1): what you copy
   // is real characters, always — the canvas is just a fast opinion of it.
   mirror.textContent = mirrorLines.join("\n");
+
+  // FLOW performs the same text the mirror holds — one buffer, two
+  // performances (§5). GRID drew above; FLOW draws async behind its
+  // font gate when it's the active view.
+  if (view === "flow") renderFlowView(mirrorLines.join("\n"));
 
   if (cornerSwap) requestAnimationFrame(render);
 
@@ -425,6 +497,48 @@ $("#load").addEventListener("click", () => {
   } else {
     flash("no ?k= or ?a= in that — nothing to load.");
   }
+});
+
+// ── GRID/FLOW toggle + definition controls (M3) ───────────────────────
+function setView(next: "grid" | "flow"): void {
+  view = next;
+  canvas.style.display = next === "grid" ? "" : "none";
+  flowCanvas.style.display = next === "flow" ? "" : "none";
+  $("#view-grid").classList.toggle("active", next === "grid");
+  $("#view-flow").classList.toggle("active", next === "flow");
+  $("#flow-controls").style.display = next === "flow" ? "" : "none";
+  $("#flow-size").style.display = next === "flow" ? "" : "none";
+  render();
+}
+$("#view-grid").addEventListener("click", () => setView("grid"));
+$("#view-flow").addEventListener("click", () => setView("flow"));
+
+for (const r of ["vw", "chars", "physical"] as const) {
+  $(`#rg-${r === "physical" ? "physical" : r}`).addEventListener("click", () => {
+    regime = r;
+    for (const other of ["vw", "chars", "physical"]) {
+      $(`#rg-${other}`).classList.toggle("active", other === r);
+    }
+    render();
+  });
+}
+
+$<HTMLInputElement>("#fontpx").addEventListener("input", () => {
+  fontPx = Number($<HTMLInputElement>("#fontpx").value);
+  $("#v-fontpx").textContent = `${fontPx}px`;
+  render();
+});
+
+// The cursor displacer (§5.2): ephemeral, never logged. Text reflows
+// around the pointer while it's over the FLOW canvas; leaves no trace.
+flowCanvas.addEventListener("pointermove", (e) => {
+  const rect = flowCanvas.getBoundingClientRect();
+  flowCursor = { x: e.clientX - rect.left, y: e.clientY - rect.top, r: 48 };
+  render();
+});
+flowCanvas.addEventListener("pointerleave", () => {
+  flowCursor = null;
+  render();
 });
 
 // ── PHASE: the flutter loop ────────────────────────────────────────────
