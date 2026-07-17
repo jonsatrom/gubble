@@ -306,7 +306,7 @@ for (let k = 0; k < 4; k++) {
     if (kit.corners[k] !== d) {
       // The performable move (§10): don't snap — dissolve. State truth
       // is the destination immediately; the theater is preview-only.
-      cornerSwap = { k, from: kit.corners[k], start: performance.now() };
+      cornerSwap = { k, from: kit.corners[k] ?? null, start: performance.now() };
       kit.corners[k] = d;
     }
     refreshCorners();
