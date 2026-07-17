@@ -43,6 +43,7 @@ const kit: Kit = {
   effects: { ...NEUTRAL_EFFECTS },
 };
 let frame = 0;
+let strataView = false;
 
 // ── DOM ────────────────────────────────────────────────────────────────
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
@@ -83,6 +84,23 @@ function currentBuffer(): CellBuffer {
   return buffer;
 }
 
+// The strata view (§14.1's inspector, first face; ratified in the §19
+// strata conversation): tint by op AGE instead of aesthetic. Oldest
+// deposits go cold sediment-blue, newest go hot; the pending preview —
+// the not-yet-stratum — burns white. A geological survey of the page.
+// This exists because the fossil/fog composite is nearly invisible when
+// every stratum draws from the same palettes in the same swatches: the
+// depth is real but unlabeled. This is the label.
+function strataColor(opIndex: number, opCount: number): string {
+  if (opIndex >= opCount) return "#ffffff"; // the pending mark: not yet sediment
+  if (opCount <= 1) return "#7a9fc9";
+  const t = opIndex / (opCount - 1); // 0 = oldest … 1 = newest committed
+  const cold = { r: 74, g: 96, b: 138 };
+  const hot = { r: 255, g: 157, b: 226 };
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * t);
+  return `rgb(${mix(cold.r, hot.r)},${mix(cold.g, hot.g)},${mix(cold.b, hot.b)})`;
+}
+
 function render(): void {
   const buffer = currentBuffer();
   ctx.fillStyle = "#0e0e11";
@@ -93,7 +111,9 @@ function render(): void {
     for (let c = 0; c < buffer.cols; c++) {
       const cell = buffer.get(r, c);
       if (cell.glyph === " " || cell.glyph === "") continue;
-      ctx.fillStyle = (cell.provenance && swatchOf.get(cell.provenance.aes)) || "#d8d8e0";
+      ctx.fillStyle = strataView
+        ? strataColor(cell.provenance?.op ?? 0, doc.ops.length)
+        : (cell.provenance && swatchOf.get(cell.provenance.aes)) || "#d8d8e0";
       ctx.fillText(cell.glyph, c * CELL_W, r * CELL_H + 2);
     }
   }
@@ -220,6 +240,12 @@ $("#copy").addEventListener("click", () => {
 $("#reseed").addEventListener("click", () => {
   doc = createDocument({ cols: COLS, rows: ROWS });
   frame = 0;
+  render();
+});
+
+$("#strata").addEventListener("click", () => {
+  strataView = !strataView;
+  $("#strata").classList.toggle("active", strataView);
   render();
 });
 

@@ -15,3 +15,8 @@ dist/
 # private if you care about them — git is not doing it for you here.]
 aesthetics/*/sources/
 aesthetics/*/corpus.txt
+
+# captures/ holds session recordings + screenshots — studio field notes,
+# local only. The README explains itself and is the one file that travels.
+captures/*
+!captures/README.md

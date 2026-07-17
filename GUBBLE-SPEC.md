@@ -32,6 +32,7 @@ Read §2 before writing a line. The worldview is load-bearing.
 | **mouvance** | The fork-cloud ontology: a work existing only as a swarm of variants with no authoritative original (Zumthor's term for medieval textuality). The commons' branch viewer is the **mouvance view**. |
 | **cootie** | The optional zero-width attribution payload in plain-text exports. See §14. |
 | **kipple** | Ambient term for the material itself. Sources folders are middens. Treat the discard pile as the record. |
+| **strata** | (ratified 2026-07-16) The layers gubble actually has: sedimentary, temporal, append-only. Every op is a deposit; ops with phase in their kit keep breathing forever (weather), ops without are stone (fossil). Strata can be read, tinted, core-sampled, eroded — never reordered. The word "layer" is deliberately avoided: it imports Adobe muscle memory (z-order, opacity, panels), and a layers panel is how background/foreground — i.e. signal/noise — sneak back in wearing trenchcoats (violates Directives 2 and 3). Same flat field, aging at different rates. |
 
 ## 2. Prime Directives (non-negotiable; violations are bugs)
 
@@ -582,6 +583,19 @@ questions, asked properly instead of bikeshedding them):**
   silent bedrock. The ruling that produced this: determinism isn't a ban on
   accidents, it's the preservation medium for them — so name everything the
   preservation depends on.
+
+**RATIFIED — 2026-07-16, the strata conversation (Jon noticed PHASE's
+stable cells reading as depth-of-field — film degradation, smudges on
+glass — and asked what leaning into "layers" would mean):**
+- **strata** enters the vocabulary (§1). Layers-as-sediment is spec-native;
+  layers-as-Photoshop-panel is banned on Directive 2/3 grounds.
+- The age-tint **strata view** (tint cells by provenance op-age, geological
+  survey style) is the sanctioned way to make sediment legible — it's the
+  §14.1 inspector's first face, arriving early in the app.
+- NOTED, not yet ratified: recording per-cell stability (stone vs weather)
+  in the provenance channel as `{aes, op, stable}` so future tools can
+  address the skeleton directly (distill only the smudges, select only the
+  weather). Schema decision — needs its own yes before it exists.
 
 ## 20. Lineage (cite in README; theory is load-bearing, not ornamental)
 

@@ -76,6 +76,7 @@
       letter-spacing: 1px; cursor: pointer;
     }
     button:hover { border-color: var(--hot); color: var(--hot); }
+    button.active { border-color: var(--hot); color: var(--hot); background: #241722; }
     #readout { color: var(--dim); font-size: 10px; word-break: break-all; }
   </style>
 </head>
@@ -114,6 +115,9 @@
     <div class="row">
       <button id="copy" title="copies the pre mirror — real characters, always">COPY TXT</button>
       <button id="reseed" title="new document, new docSeed — the one sanctioned dice roll">RESEED</button>
+    </div>
+    <div class="row">
+      <button id="strata" title="tint cells by op age instead of aesthetic — the sediment, made legible (§14.1's inspector, first face)">STRATA</button>
     </div>
     <div id="readout"></div>
   </section>
