@@ -12,6 +12,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "verify": "npm run build --workspace=@gubble/core && npm run test --workspace=@gubble/core && tsc -p packages/app/tsconfig.json --noEmit",
     "compile": "npm run compile --workspace=@gubble/cli --"
   },
   "devDependencies": {

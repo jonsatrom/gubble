@@ -14,67 +14,62 @@ that got settled and the ones deliberately left open — lives in
 [GUBBLE-SPEC.md](./GUBBLE-SPEC.md). Read it before touching architecture.
 It is not boilerplate; it is the contract.
 
-## Where things actually are, honestly, today
+## THE LEDGER — current state, brutally factual
 
-**M0 is REACHED**: `gubble compile` runs, two example aesthetics are
-compiled, and the seed library is open for feeding. **The operator's
-manual is [FEEDING.md](./FEEDING.md)** — start there if you came to make
-aesthetics rather than read architecture.
+This section is the front door, not the sediment. It gets REWRITTEN as
+reality moves; dated history lives in the milestone briefs (M3-BRIEF.md,
+git log) and stays put. If prose here contradicts running code, the
+prose is the bug. Last verified: 2026-07-18.
+
+**Verify ritual:** `nvm use && npm run verify` — runs every core test
+(125) and typechecks the app. Green means the promises below held.
+
+**ALIVE** (built, crossing-tested, playable now):
+- `gubble compile` CLI: census → ductus + specimen; mix/fill/link/census
+  verbs (`./gubble …` from repo root; see FEEDING.md)
+- Event log: state = replay(ops), undo = truncation, fork with lineage
+- GRID + FLOW: two performances of one buffer (FLOW: Pretext, vw=stream
+  / chars=grid-faithful, cursor displacer; dominant-corner fontHints)
+- The mixer: bilinear corners, per-cell shimmer, ~2s seeded crossfades,
+  density/grain/phase at page scope (PHASE = integer-frame flutter,
+  freezable mid-shimmer)
+- Selection: drag-select, applyOnce verbs (redact / invert / posterize /
+  fillWith / mistranscode with REAL cp1252 math), spawnable controllers
+  (select text → mixer materializes on it), persistSection
+- Sharing: ?a= aesthetics, ?k= kits, ?g= whole documents with at/f/mode
+  (view|edit); URLs minted at the running origin; arrived documents FORK
+  at first touch with lineage stamped; frozen (?f=&mode=view) arrivals
+  hold still until touched; FREEZE stamps the moment, mints its URL,
+  opens print
+- STRATA view (op-age tint — §14.1's inspector, first face)
+
+**PARTIAL** (exists, but less than the spec's full sentence):
+- `physical` width regime: linked size↔chars readout only; print-unit
+  enforcement lands with paged print work
+- Hazard handling: census flags + ductus hazard bit exist; the app has
+  no consent dramaturgy yet (§15.3's informed-consent UI is absent)
+- Provenance: recorded per-cell and colorable, but no hover inspector
+- `main.ts` holds nearly the whole app; decomposition along project
+  concepts is queued (see packages/app/README.md)
+
+**ABSENT** (v1 spec says yes; not built):
+- `.gbbl` zip package (header.json + ops.jsonl + thumb.txt)
+- Image census (luminance→ink, k-means→swatches)
+- In-app distill panel (§7.5)
+
+**TABLED** (deliberately parked, on the record):
+- `replay` URL mode → v2 playback UI (parsed nowhere, honestly)
+- LLM-distill, brushes/stroke scope, ANSI+SAUCE export, svgbob misuse,
+  the cootie, commons/mouvance — see spec §16 ledger
+- Async/LLM brushes 🪲 (§19's contractually recurring bug)
 
 ```
-gubble/
-  packages/
-    core/    @gubble/core   — framework-free TS, all tested (80/80):
-                               PRNG (sfc32) · hash (FNV-1a) · seed
-                               minting · cell-width math over a vendored
-                               frozen Unicode 16.0 snapshot (`measure:
-                               "eaw-16.0/g1"`, now incl. combining-mark
-                               ranges for zalgo stack-depth) · ink-weight
-                               ramp · the census (§7.3) · ductus build +
-                               content-derived ids (§7.2) · two-sweep
-                               specimen renderer (§7.4) · aesthetic-as-URL
-                               deflate encoding (§12) · the EVENT LOG
-                               (§4: state = replay(ops), undo = truncation,
-                               fork-at with lineage — Directive 2 is now
-                               executable, M1 reached) · cell buffer with
-                               per-cell provenance (§14.1, ships v1 as
-                               argued).
-                               KNOWN GAP, documented in width.ts: grapheme
-                               CLUSTER BOUNDARIES still come from the host
-                               engine's Intl.Segmenter/ICU — a real,
-                               unclosed Directive 1 crack, not pretended
-                               away.
-                               NOT YET: image census, mixer/kits (M2),
-                               effects (M2), selection scopes (M4).
-    cli/     @gubble/cli    — LIVE. compile (+ --watch) / census /
-                               specimen / link, zero deps beyond core +
-                               node builtins. See FEEDING.md.
-    app/     @gubble/app    — ALIVE (M2). Vite + vanilla TS: GRID canvas
-                               with a <pre> mirror as the copy source of
-                               truth, XY pad + puck, rail chips that
-                               render themselves as their own labels,
-                               density/grain/phase live, PHASE flutter
-                               loop, STAMP/UNDO straight onto the event
-                               log. Preview honesty: the live preview
-                               fills with the seed the next op WILL get,
-                               so what you see is byte-identical to what
-                               STAMP commits. Run: `npm run dev
-                               --workspace=@gubble/app`.
-                               Not yet: corner-swap ~2s crossfade (§10),
-                               drag-chip-out-copies-URL, kit-URL
-                               share/load in the UI.
-  aesthetics/                — two compiled examples: gradient-blocks
-                               (the ramp promoted to aesthetic) and
-                               myspace-swirl (corpus-bearing, profile-core
-                               lineage). NOTE: their sources/ and
-                               corpus.txt live only on Jon's machine —
-                               Directive 6 says only ductus + specimen +
-                               manifest leave a folder, so that's all git
-                               carries.
-  calibration/                — density-sweep-lr.txt gradient fixture +
-                               the discipline docs (§8).
-  FEEDING.md                  — how to feed middens. The operator's manual.
-  GUBBLE-SPEC.md              — the contract. Start here, always.
+packages/core  → the math + the log (framework-free TS, 125 tests)
+packages/cli   → gubble compile/census/specimen/link/mix/fill
+packages/app   → the instrument (Vite; npm run dev --workspace=@gubble/app)
+aesthetics/    → compiled ductus+specimen travel; sources/ stay home (Directive 6)
+calibration/   → gradient fixtures (§8)
+FEEDING.md     → operator's manual · GUBBLE-SPEC.md → the contract
 ```
 
 **Repo naming, settled:** the repo is `gubble`, not `gubble-core` — naming

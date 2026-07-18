@@ -99,6 +99,20 @@
       font: inherit; font-size: 11px;
     }
     #loadurl:focus { outline: none; border-color: var(--hot); }
+
+    /* ── FREEZE: the print path (§12). On paper, gubble is just its
+       characters — the chrome evaporates, the composition remains. ── */
+    #printsheet { display: none; }
+    @media print {
+      body > *:not(#printsheet) { display: none !important; }
+      body { height: auto; background: #fff; }
+      #printsheet {
+        display: block; color: #000;
+        font: 11px/1.25 ui-monospace, "SF Mono", Menlo, monospace;
+        white-space: pre; margin: 0;
+      }
+      @page { margin: 14mm; }
+    }
     #readout { color: var(--dim); font-size: 10px; word-break: break-all; }
   </style>
 </head>
@@ -115,6 +129,7 @@
     <div id="controllers"></div>
     <pre id="mirror"></pre>
   </main>
+  <pre id="printsheet"></pre>
 
   <section id="controls">
     <div class="row">
@@ -156,6 +171,10 @@
     <div class="row">
       <button id="strata" title="tint cells by op age instead of aesthetic — the sediment, made legible (§14.1's inspector, first face)">STRATA</button>
       <button id="sharekit" title="the kit IS the patch file; the URL is the patch file format (§10)">SHARE KIT</button>
+    </div>
+    <div class="row">
+      <button id="sharedoc" title="the WHOLE PERFORMANCE as a link — every op, every seed; the URL is the recording (§12)">SHARE DOC</button>
+      <button id="freeze" title="stamp the moment, mint its exact URL (frame included), open print — CMD+P works (§12)">❄ FREEZE</button>
     </div>
     <div id="verbs" style="display: none;">
       <label>selection — apply once (§11)</label>

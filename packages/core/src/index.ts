@@ -31,7 +31,15 @@ export {
 export type { Ductus, GrainAffinity, BuildDuctusOptions } from "./ductus.js";
 export { renderSpecimen } from "./specimen.js";
 export type { SpecimenOptions } from "./specimen.js";
-export { encodePayload, decodePayload, encodeDuctusUrl, decodeDuctusUrl } from "./url.js";
+export {
+  encodePayload,
+  decodePayload,
+  encodeDuctusUrl,
+  decodeDuctusUrl,
+  encodeDocUrl,
+  decodeDocUrl,
+} from "./url.js";
+export type { DecodedDocUrl } from "./url.js";
 export { CellBuffer } from "./buffer.js";
 export type { Cell, Provenance } from "./buffer.js";
 export {

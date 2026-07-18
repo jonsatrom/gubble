@@ -194,13 +194,14 @@ row-banded fills. The fix is versioned as derivation chain `sfc32/2`,
 the war story lives in `packages/core/src/hash.ts`, and a regression
 test now stands guard. Eyeballs are a calibration instrument. Use them.
 
-## 6. What does NOT exist yet, so you don't go looking
+## 6. Beyond the CLI
 
-Image census (luminance→ink, k-means→swatches — next pass), the mixer
-and kits (M2), GRID/FLOW rendering, effects, the app entirely (M2+).
-The event log DOES exist now (M1 — that's what `./gubble fill` is
-poking), but its only face is that verb. The CLI is the whole
-instrument today. That's Phase Zero working as designed: the seed
-library doesn't wait for the stage.
+The CLI is no longer the whole instrument — the app exists (`npm run
+dev --workspace=@gubble/app`): GRID + FLOW, the XY mixer, selection
+verbs, controllers, document URLs, FREEZE. This manual stays scoped to
+the CLI/feeding workflow; **the root README's LEDGER is the single
+factual account of what's alive, partial, and absent.** If this file
+and the ledger disagree, trust the ledger and file a complaint against
+this file.
 
 gubble gubble.

@@ -20,14 +20,25 @@ interface ByteStreamPair {
   readable: { getReader(): MinimalReader };
   writable: { getWriter(): MinimalWriter };
 }
-declare const CompressionStream: new (format: "deflate-raw") => ByteStreamPair;
-declare const DecompressionStream: new (format: "deflate-raw") => ByteStreamPair;
+declare const CompressionStream: new (format: "deflate") => ByteStreamPair;
+declare const DecompressionStream: new (format: "deflate") => ByteStreamPair;
 
 async function pumpThrough(stream: ByteStreamPair, input: Uint8Array): Promise<Uint8Array> {
   const writer = stream.writable.getWriter();
   const reader = stream.readable.getReader();
   const chunks: Uint8Array[] = [];
-  const writing = writer.write(input).then(() => writer.close());
+  // The write leg's rejection is deliberately absorbed: when a corrupt
+  // payload errors the stream, BOTH legs reject — the reader's throw is
+  // the one callers catch, and an unabsorbed writer rejection would
+  // detonate as an unhandled rejection AFTER the real error already
+  // surfaced. (Found by the doc-url crossing tests, first run: nine
+  // green assertions and two live grenades in the corner.) A write-side
+  // failure with a healthy read side still surfaces — the output comes
+  // up short and JSON.parse refuses it.
+  const writing = writer
+    .write(input)
+    .then(() => writer.close())
+    .catch(() => {});
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -117,17 +128,27 @@ function utf8Decode(bytes: Uint8Array): string {
 }
 
 /**
- * Encode any JSON-serializable payload (a ductus, later a kit) into the
- * URL-fragment form: deflate-raw compressed, base64url encoded.
+ * Encode any JSON-serializable payload (a ductus, a kit, a whole
+ * document) into the URL-fragment form: zlib-wrapped deflate,
+ * base64url encoded.
+ *
+ * WHY "deflate" AND NOT "deflate-raw" — a war story, preserved: raw
+ * deflate carries no header, so the decompressor has to assume a
+ * window size, and a Node-minted payload hit a Chrome inflater that
+ * refused it ("invalid distance too far back") — same bytes, decoded
+ * fine in Node, dead in the browser. The zlib wrapper costs six bytes
+ * and DECLARES its window in the header, which is the whole dispute
+ * settled in the format itself. The seed and the ruler freeze
+ * together; apparently the envelope needs naming too.
  */
 export async function encodePayload(payload: unknown): Promise<string> {
-  const compressed = await pumpThrough(new CompressionStream("deflate-raw"), utf8Encode(JSON.stringify(payload)));
+  const compressed = await pumpThrough(new CompressionStream("deflate"), utf8Encode(JSON.stringify(payload)));
   return bytesToBase64url(compressed);
 }
 
 /** Reverse of encodePayload. Throws on malformed input — a broken link is a broken link. */
 export async function decodePayload<T = unknown>(encoded: string): Promise<T> {
-  const decompressed = await pumpThrough(new DecompressionStream("deflate-raw"), base64urlToBytes(encoded));
+  const decompressed = await pumpThrough(new DecompressionStream("deflate"), base64urlToBytes(encoded));
   return JSON.parse(utf8Decode(decompressed)) as T;
 }
 
@@ -146,4 +167,53 @@ export async function decodeDuctusUrl<T = unknown>(url: string): Promise<T> {
   const match = /[#?&]a=([A-Za-z0-9_-]+)/.exec(url);
   if (!match) throw new Error("no ?a= or #a= payload found in URL");
   return decodePayload<T>(match[1]!);
+}
+
+/**
+ * The DOCUMENT as URL (§12): the whole event log — header, ops, seeds,
+ * everything replay needs — deflated into a fragment. This is the v1
+ * promise kept: a performance is a recording, the recording is a link,
+ * and nobody's server sits between the two (Directive 5). Modifier
+ * params ride alongside: `at` (op index to stop at — with mode=edit
+ * this IS fork-at-frame), `f` (frame, freezing a shimmer MID-shimmer),
+ * `mode` (view | edit).
+ * [PLACED DEFAULTS — §19]: the payload param letter is `g` (the spec's
+ * table names k/a/mode/at/f but left the document's own letter
+ * unspoken; g for gubble, bikeshed at will). The spec's third mode,
+ * `replay`, is DELIBERATELY not emitted or parsed: it belongs to the
+ * v2 playback UI, and a mode the software parses but never performs is
+ * a lie wearing a query param. It returns when playback does.
+ */
+export async function encodeDocUrl(
+  doc: unknown,
+  opts: { origin?: string; at?: number; frame?: number; mode?: "view" | "edit" } = {},
+): Promise<string> {
+  const origin = opts.origin ?? "https://gubble.example";
+  let url = `${origin}/#g=${await encodePayload(doc)}`;
+  if (opts.at !== undefined) url += `&at=${opts.at}`;
+  if (opts.frame !== undefined) url += `&f=${opts.frame}`;
+  if (opts.mode) url += `&mode=${opts.mode}`;
+  return url;
+}
+
+export interface DecodedDocUrl<T> {
+  doc: T;
+  at: number | null;
+  frame: number | null;
+  mode: "view" | "edit" | null;
+}
+
+/** Reverse of encodeDocUrl — the document plus its modifier params. */
+export async function decodeDocUrl<T = unknown>(url: string): Promise<DecodedDocUrl<T>> {
+  const g = /[#?&]g=([A-Za-z0-9_-]+)/.exec(url);
+  if (!g) throw new Error("no ?g= or #g= document payload found in URL");
+  const at = /[#?&]at=(\d+)/.exec(url);
+  const f = /[#?&]f=(\d+)/.exec(url);
+  const mode = /[#?&]mode=(view|edit)/.exec(url);
+  return {
+    doc: await decodePayload<T>(g[1]!),
+    at: at ? Number(at[1]) : null,
+    frame: f ? Number(f[1]) : null,
+    mode: (mode?.[1] as DecodedDocUrl<T>["mode"]) ?? null,
+  };
 }

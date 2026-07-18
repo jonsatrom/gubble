@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The instrument. GRID + mixer at M2: canvas render with a <pre> mirror as the copy source of truth, XY pad, rail, density/grain/phase live.",
+  "description": "The instrument: GRID + FLOW performances of one buffer, XY mixer, selection verbs + spawnable controllers, doc/kit/aesthetic URLs with fork lineage, FREEZE/print. See root README's ledger for what's alive vs absent.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -11,6 +11,7 @@ import {
   createDocument,
   appendOp,
   truncate,
+  forkDocument,
   replayFull,
   deriveSeed,
   kitFill,
@@ -21,6 +22,8 @@ import {
   decodeDuctusUrl,
   encodeKitUrl,
   decodeKitUrl,
+  encodeDocUrl,
+  decodeDocUrl,
   type GubbleDoc,
   type Kit,
   type Corners,
@@ -44,9 +47,14 @@ import cultcow from "../../../aesthetics/cultcow/ductus.json";
 // guests — the rail grows by link, no registry, no gate (Directive 5).
 const LIBRARY: Ductus[] = [gradientBlocks, myspaceSwirl, cultcow] as unknown as Ductus[];
 
+// Every URL this app mints points at ITSELF — localhost tonight, the
+// deploy origin the day one exists. A shared link that opens is the
+// promise; gubble.example was a placeholder wearing its grammar.
+const ORIGIN = location.origin;
+
 // Each chip's aesthetic-as-URL, precomputed so drag-out can carry it.
 const chipUrl = new Map<string, string>();
-for (const d of LIBRARY) void encodeDuctusUrl(d).then((u) => chipUrl.set(d.id, u));
+for (const d of LIBRARY) void encodeDuctusUrl(d, ORIGIN).then((u) => chipUrl.set(d.id, u));
 
 // ── state ──────────────────────────────────────────────────────────────
 const COLS = 96;
@@ -74,6 +82,29 @@ let flowCursor: FlowCursor | null = null;
 let selAnchor: number | null = null; // cell index where the drag started
 let selHead: number | null = null; // cell index under the pointer now
 let selecting = false;
+
+// ── arrival state (M5): documents that came here by URL ───────────────
+// If this document arrived as a #g= fragment, the first committed touch
+// FORKS it — lineage stamped with the parent's URL and the divergence
+// point — because appending to someone else's history without saying so
+// is exactly the provenance-laundering this project exists to refuse.
+// Until that touch, you're a reader; the touch makes you a maker.
+let arrivedFrom: string | null = null;
+let arrivedFrozen = false;
+
+/**
+ * The ONLY way ops enter the log from this app. The wrapper is where
+ * arrival becomes fork (once, at first touch) — raw appendOp calls
+ * would let ambient state skip the lineage moment.
+ */
+function logOp(op: Parameters<typeof appendOp>[1]): void {
+  if (arrivedFrom) {
+    doc = forkDocument(doc, doc.ops.length, arrivedFrom);
+    arrivedFrom = null;
+  }
+  arrivedFrozen = false; // performing unfreezes; a frozen arrival stays frozen only while merely viewed
+  appendOp(doc, op);
+}
 
 // ── controller state (M4b) ─────────────────────────────────────────────
 // A slider mid-drag is ephemeral performance; its RELEASE is history
@@ -363,6 +394,8 @@ function render(): void {
   if (flashTimer) return; // a message is borrowing the readout; facts resume shortly
   readout.textContent =
     `doc ${doc.header.docSeed.slice(0, 8)}… · ${doc.ops.length} op${doc.ops.length === 1 ? "" : "s"}` +
+    (doc.header.lineage ? ` · fork@${doc.header.lineage.at}` : "") +
+    (arrivedFrom ? " · arrived (touch to fork)" : "") +
     ` · puck ${kit.puck.x.toFixed(2)},${kit.puck.y.toFixed(2)}` +
     (kit.effects.phase > 0 ? ` · frame ${frame}` : "") +
     ` · ${doc.header.rng} · ${doc.header.measure}`;
@@ -412,7 +445,7 @@ function dockAesthetic(d: Ductus): void {
   if (LIBRARY.some((a) => a.id === d.id)) return; // already aboard
   LIBRARY.push(d);
   swatchOf.set(d.id, d.color.swatches[0] ?? "#d8d8e0");
-  void encodeDuctusUrl(d).then((u) => chipUrl.set(d.id, u));
+  void encodeDuctusUrl(d, ORIGIN).then((u) => chipUrl.set(d.id, u));
   addChip(d);
 }
 
@@ -475,6 +508,7 @@ pad.addEventListener("pointerdown", (e) => {
 pad.addEventListener("pointermove", (e) => dragging && movePuck(e));
 pad.addEventListener("pointerup", () => (dragging = false));
 function movePuck(e: PointerEvent): void {
+  arrivedFrozen = false; // leaning IS touching — a frozen arrival wakes under the hand
   const rect = pad.getBoundingClientRect();
   kit.puck.x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
   kit.puck.y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
@@ -496,7 +530,7 @@ for (const name of ["density", "grain", "phase"] as const) {
 $("#stamp").addEventListener("click", () => {
   // Deep-copy the kit into the log: the op owns its snapshot; later
   // puck moves must not haunt committed history.
-  appendOp(doc, {
+  logOp({
     op: "fill",
     scope: { kind: "page" },
     args: { kit: JSON.parse(JSON.stringify(kit)) as Kit },
@@ -516,6 +550,10 @@ $("#copy").addEventListener("click", () => {
 $("#reseed").addEventListener("click", () => {
   doc = createDocument({ cols: COLS, rows: ROWS });
   frame = 0;
+  // A fresh document is nobody's fork: disarm the arrival state, or the
+  // new page's first op would stamp a lineage it never had.
+  arrivedFrom = null;
+  arrivedFrozen = false;
   render();
 });
 
@@ -527,11 +565,75 @@ $("#strata").addEventListener("click", () => {
 
 // ── the kit as URL: share out, load in (§10, §12) ─────────────────────
 $("#sharekit").addEventListener("click", () => {
-  void encodeKitUrl(kit).then((url) => {
+  void encodeKitUrl(kit, ORIGIN).then((url) => {
     void navigator.clipboard.writeText(url);
     flash("kit → clipboard. the URL is the patch file.");
   });
 });
+
+// ── the DOCUMENT as URL (§12): the performance is the recording ───────
+function docIsBreathing(): boolean {
+  return doc.ops.some((op) => (((op.args["kit"] as Kit | undefined)?.effects.phase ?? 0) > 0));
+}
+
+$("#sharedoc").addEventListener("click", () => {
+  void encodeDocUrl(doc, docIsBreathing() ? { origin: ORIGIN, frame } : { origin: ORIGIN }).then((url) => {
+    void navigator.clipboard.writeText(url);
+    flash(`performance → clipboard (${doc.ops.length} ops, ${url.length} chars). replayable by strangers.`);
+  });
+});
+
+// ── FREEZE (§12): both a print path and a keep-this-flutter-frame ─────
+// gesture. The pending preview isn't logged, so freezing means
+// COMMITTING the moment first — keeping is stamping. Then: the exact
+// moment's URL (frame included if anything breathes) to the clipboard,
+// the mirror's characters onto the printsheet, and the browser's own
+// print dialog does the rest. On paper, gubble is just its characters.
+$("#freeze").addEventListener("click", () => {
+  if (kit.corners.some(Boolean)) {
+    logOp({
+      op: "fill",
+      scope: { kind: "page" },
+      args: { kit: JSON.parse(JSON.stringify(kit)) as Kit },
+    });
+    render();
+  }
+  void encodeDocUrl(doc, docIsBreathing() ? { origin: ORIGIN, frame, mode: "view" } : { origin: ORIGIN, mode: "view" }).then((url) => {
+    void navigator.clipboard.writeText(url);
+    $("#printsheet").textContent = mirror.textContent;
+    flash("moment stamped · URL on clipboard · print dialog yours");
+    window.print();
+  });
+});
+
+// ── URL arrival (§12): boot AND hashchange ────────────────────────────
+// A #g= fragment means someone handed this browser a whole performance.
+// Load it, honor at (stop at that op), honor f (freeze the shimmer at
+// that exact frame; view mode holds the flutter still until touched).
+// The FORK doesn't happen here — it happens at your first committed
+// touch, in logOp(): arrival makes you a reader, the touch makes you a
+// maker, and the lineage stamp records exactly where you diverged.
+// hashchange matters because same-origin fragment navigation never
+// reloads the page: a URL pasted into a RUNNING instrument must load
+// too, or the sovereignty story has a hole in it.
+function loadFromHash(): void {
+  if (!/[#?&]g=/.test(location.hash)) return;
+  void decodeDocUrl<GubbleDoc>(location.href)
+    .then((decoded) => {
+      doc = decoded.doc;
+      if (decoded.at !== null) doc = truncate(doc, decoded.at);
+      if (decoded.frame !== null) frame = decoded.frame;
+      arrivedFrozen = decoded.mode === "view" && decoded.frame !== null;
+      arrivedFrom = location.href; // the parent's address, held until first touch forks
+      kit.corners = [null, null, null, null]; // arrive as a reader: no pending mark over someone else's page
+      refreshCorners();
+      render();
+      flash(`performance loaded — ${doc.ops.length} ops replayed from the URL alone. touch it and it forks.`);
+    })
+    .catch(() => flash("that #g= didn't decode. broken link is broken — the artifact survives in your address bar."));
+}
+window.addEventListener("hashchange", loadFromHash);
+loadFromHash();
 
 function syncControlsToKit(): void {
   for (const name of ["density", "grain", "phase"] as const) {
@@ -647,14 +749,14 @@ canvas.addEventListener("pointerup", (e) => {
   if (selAnchor === selHead) {
     // A click is a clearSelect — same as any text editor.
     if (doc.ops.some((op) => op.op === "select")) {
-      appendOp(doc, { op: "clearSelect", scope: { kind: "selection" }, args: {} });
+      logOp({ op: "clearSelect", scope: { kind: "selection" }, args: {} });
     }
     selAnchor = selHead = null;
     $("#verbs").style.display = "none";
   } else {
     // One logged op per completed gesture (§4.1 coalescing) — the drag
     // itself was ephemeral preview; the release is history.
-    appendOp(doc, {
+    logOp({
       op: "select",
       scope: { kind: "selection" },
       args: { range: { from: selAnchor!, to: selHead } },
@@ -666,7 +768,7 @@ canvas.addEventListener("pointerup", (e) => {
 
 for (const verb of ["redact", "mistranscode", "invert", "posterize", "fillWith"] as const) {
   $(`#vb-${verb}`).addEventListener("click", () => {
-    appendOp(doc, {
+    logOp({
       op: "applyOnce",
       scope: { kind: "selection" },
       args:
@@ -681,7 +783,7 @@ for (const verb of ["redact", "mistranscode", "invert", "posterize", "fillWith"]
 // ── spawn a controller (M4b): the mixer materializes ON the selection ──
 $("#vb-spawn").addEventListener("click", () => {
   if (selAnchor === null || selHead === null) return;
-  appendOp(doc, {
+  logOp({
     op: "spawnController",
     scope: { kind: "selection" },
     args: {
@@ -722,7 +824,7 @@ function syncControllers(): void {
       });
       slider.addEventListener("change", () => {
         liveMove = null;
-        appendOp(doc, {
+        logOp({
           op: "moveController",
           scope: { kind: "selection" },
           args: { id: section.id, value: Number(slider.value) },
@@ -746,7 +848,7 @@ function syncControllers(): void {
         }),
         slider,
         mkBtn("⧉", "adopt the pad's current corners — the mini-XY expansion (§11)", () => {
-          appendOp(doc, {
+          logOp({
             op: "moveController",
             scope: { kind: "selection" },
             args: {
@@ -758,7 +860,7 @@ function syncControllers(): void {
           render();
         }),
         mkBtn("◆", "persist: this selection-with-a-controller becomes a SECTION (§11)", () => {
-          appendOp(doc, { op: "persistSection", scope: { kind: "selection" }, args: { id: section.id } });
+          logOp({ op: "persistSection", scope: { kind: "selection" }, args: { id: section.id } });
           render();
         }),
       );
@@ -795,6 +897,7 @@ function syncControllers(): void {
 // is a breath, not a strobe; when phase is 0 the counter doesn't even
 // advance — a still page costs nothing.
 setInterval(() => {
+  if (arrivedFrozen) return; // a ?f=&mode=view arrival stays mid-shimmer until touched
   const phaseActive =
     kit.effects.phase > 0 ||
     doc.ops.some((op) => ((op.args["kit"] as Kit | undefined)?.effects.phase ?? 0) > 0);

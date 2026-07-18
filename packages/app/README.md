@@ -1,9 +1,24 @@
-# @gubble/app — not yet, and that's the plan
+# @gubble/app — the instrument
 
-This package is a placeholder. Per [GUBBLE-SPEC.md](../../GUBBLE-SPEC.md) §17,
-the build order is CLI first (M0), then core (M1), then GRID + the mixer
-(M2) — which is the first point this package actually has anything in it.
+This package was a placeholder until M2; it is now the instrument
+itself. If this README ever claims the package is empty again, that is
+drift, and drift in a project about provenance is a bug with a moral
+dimension. Current factual state lives in the root README's ledger.
 
-Building the instrument's face before the instrument's guts exist is how you
-end up polishing a UI around math that doesn't work yet. Not this time.
-It's empty on purpose. Ask again at M2.
+What's here: GRID (canvas + `<pre>` mirror as the copy source of
+truth) · FLOW (Pretext, vw/chars regimes, cursor displacer) · the XY
+mixer with self-labeling rail chips and per-cell crossfades ·
+density/grain/phase live · drag-select + applyOnce verbs + spawnable
+selection controllers · STRATA age-tint view · share/load for
+aesthetics (?a=), kits (?k=), and whole documents (?g=, with at/f/mode)
+· fork-on-first-touch lineage for arrived documents · FREEZE (stamp
+the moment, mint its URL, print).
+
+Run it: `npm run dev --workspace=@gubble/app` (Node 20 — `nvm use`).
+
+Structural honesty note: `src/main.ts` currently holds nearly all of
+this — document lifecycle, two renderers, gestures, arrivals, and
+controllers in one file. It works and it's tested at the seams, but it
+is overdue for decomposition along the project's own concepts
+(document/history · performances · gestures · arrivals · inspectors).
+That's queued work, not a hidden virtue.
