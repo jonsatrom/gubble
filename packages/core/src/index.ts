@@ -40,8 +40,21 @@ export {
   truncate,
   forkDocument,
   replay,
+  replayFull,
+  fenceKitFill,
+  boostKit,
 } from "./log.js";
-export type { GubbleDoc, DocHeader, Op, OpKind, GridDefinition, SelectionRange, ApplyVerb } from "./log.js";
+export type {
+  GubbleDoc,
+  DocHeader,
+  Op,
+  OpKind,
+  GridDefinition,
+  SelectionRange,
+  ApplyVerb,
+  SectionState,
+  ReplayResult,
+} from "./log.js";
 export { mistranscode, redactGlyph, invertGlyph, posterizeGlyph } from "./corrupt.js";
 export { weightedPick, applyStack, ZALGO_MARKS } from "./draw.js";
 export {

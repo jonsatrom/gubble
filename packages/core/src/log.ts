@@ -44,7 +44,15 @@ export interface DocHeader {
 }
 
 /** v1 op names land incrementally with their features; these exist today. */
-export type OpKind = "setDefinition" | "fill" | "select" | "clearSelect" | "applyOnce";
+export type OpKind =
+  | "setDefinition"
+  | "fill"
+  | "select"
+  | "clearSelect"
+  | "applyOnce"
+  | "spawnController"
+  | "moveController"
+  | "persistSection";
 
 /**
  * A linear selection (§11): text-editor semantics over the grid —
@@ -198,6 +206,75 @@ function applyFill(buffer: CellBuffer, op: Op, frame: number): void {
 export type ApplyVerb = "redact" | "invert" | "posterize" | "mistranscode" | "fillWith";
 
 /**
+ * A controller pinned to a selection (§11): the select-text-spawn-a-
+ * mixer move. No text tool on earth does this; we build it like we
+ * know that. A selection with a controller pinned to it IS a section
+ * (§11's whole ontology in one sentence — pages are just the default
+ * section). The controller starts as a single-axis intensity slider
+ * over one kit; "expanding to a mini-XY" is just swapping the kit for
+ * one with more corners — same op, no new machinery.
+ */
+export interface SectionState {
+  id: string;
+  range: SelectionRange;
+  kit: Kit;
+  /** last-moved intensity, 0..1 — the slider's memory */
+  value: number;
+  /** persistSection freezes it into the document's permanent anatomy */
+  persisted: boolean;
+}
+
+/**
+ * Fence-fill: the mixer scoped to a range. Shared by applyOnce's
+ * fillWith and the controllers — one implementation of "the kit, but
+ * only HERE," because two would drift (§8's no-parallel-implementations
+ * rule, applied to ourselves).
+ */
+export function fenceKitFill(
+  buffer: CellBuffer,
+  kit: Kit,
+  seed: string,
+  opIndex: number,
+  range: SelectionRange,
+  frame: number,
+): void {
+  const lo = Math.max(0, Math.min(range.from, range.to));
+  const hi = Math.min(buffer.cols * buffer.rows - 1, Math.max(range.from, range.to));
+  for (let idx = lo; idx <= hi; idx++) {
+    const { glyph, corner } = cellDraw(kit, seed, idx, { frame });
+    if (glyph === " ") continue;
+    buffer.set(
+      Math.floor(idx / buffer.cols),
+      idx % buffer.cols,
+      glyph,
+      corner ? { aes: corner.id, op: opIndex } : { aes: "⌁fill", op: opIndex },
+    );
+  }
+}
+
+/**
+ * A controller move becomes ink: intensity maps to density gain, so
+ * value 0 is silence (no fill at all — the slider at rest deposits
+ * nothing), low values starve the fill sparse, high values flood it.
+ * Every move is a STRATUM — drag the slider four times and the
+ * section carries four sediment layers, each with its own op in the
+ * log. The slider doesn't set state; it PLAYS. State is what the log
+ * remembers about the playing.
+ */
+/** Intensity → density gain, one formula shared by replay and the app's live preview. */
+export function boostKit(kit: Kit, value: number): Kit {
+  return {
+    ...kit,
+    effects: { ...kit.effects, density: Math.min(1, value * 1.7 - 1 + kit.effects.density) },
+  };
+}
+
+function controllerFill(buffer: CellBuffer, section: SectionState, op: Op, frame: number): void {
+  if (section.value <= 0) return;
+  fenceKitFill(buffer, boostKit(section.kit, section.value), op.seed, op.i, section.range, frame);
+}
+
+/**
  * The applyOnce verbs (§11), acting on the current selection. Every one
  * is deterministic; the interesting one is mistranscode, whose output
  * is LONGER than its input (multibyte glyphs explode into one char per
@@ -215,19 +292,10 @@ function applyOnce(buffer: CellBuffer, op: Op, selection: SelectionRange | null)
   const prov = { aes: `⌁${verb}`, op: op.i }; // provenance speaks the verb's name
 
   if (verb === "fillWith") {
-    // The mixer, scoped (§9: effects and fills are scope-agnostic —
-    // this is the same cellDraw the page fill uses, fenced to the range).
+    // The mixer, scoped (§9: effects and fills are scope-agnostic) —
+    // same fence-fill the controllers use.
     const kit = op.args["kit"] as Kit | undefined;
-    if (!kit) return;
-    for (let idx = lo; idx <= hi; idx++) {
-      const r = Math.floor(idx / buffer.cols);
-      const c = idx % buffer.cols;
-      const { glyph, corner } = cellDraw(kit, op.seed, idx, {});
-      if (glyph === " ") continue;
-      // set() refuses wide glyphs at the right edge deterministically —
-      // same composition rule as the page fill.
-      buffer.set(r, c, glyph, corner ? { aes: corner.id, op: op.i } : prov);
-    }
+    if (kit) fenceKitFill(buffer, kit, op.seed, op.i, { from: lo, to: hi }, 0);
     return;
   }
 
@@ -269,15 +337,25 @@ function applyOnce(buffer: CellBuffer, op: Op, selection: SelectionRange | null)
   }
 }
 
+export interface ReplayResult {
+  buffer: CellBuffer;
+  /** live + persisted sections, in spawn order — the page's anatomy */
+  sections: SectionState[];
+  /** whatever selection history left standing */
+  selection: SelectionRange | null;
+}
+
 /**
- * State = replay(ops). The only way to get a buffer from a document —
+ * State = replay(ops). The only way to get state from a document —
  * there is no setter API on documents, no "current state" field to
- * drift out of sync. If you want the picture, you replay the history.
- * That's not an implementation detail; it's the ontology (Directive 2).
+ * drift out of sync. If you want the picture (or the sections, or the
+ * selection), you replay the history. That's not an implementation
+ * detail; it's the ontology (Directive 2).
  */
-export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffer {
+export function replayFull(doc: GubbleDoc, opts: { frame?: number } = {}): ReplayResult {
   let def = doc.header.definition;
   let buffer = new CellBuffer(def.cols, def.rows);
+  const sections = new Map<string, SectionState>();
   // The flutter frame (§4.3, §9 PHASE): time as an integer someone hands
   // us — the app's animation loop, or a `?f=` param freezing a shimmer
   // MID-shimmer. Never a clock. Cells that PHASE doesn't select ignore
@@ -309,6 +387,42 @@ export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffe
       case "applyOnce":
         applyOnce(buffer, op, selection);
         break;
+      case "spawnController": {
+        // The mixer materializes ON the selection — under the hand,
+        // instantly (§11). The range rides in the op (not read from
+        // selection state) so the section outlives later reselections.
+        const range = op.args["range"] as SelectionRange | undefined;
+        const kit = op.args["kit"] as Kit | undefined;
+        if (range && kit) {
+          sections.set(`sec_${op.i}`, {
+            id: `sec_${op.i}`,
+            range,
+            kit,
+            value: 0,
+            persisted: false,
+          });
+        }
+        break;
+      }
+      case "moveController": {
+        const id = op.args["id"] as string | undefined;
+        const section = id ? sections.get(id) : undefined;
+        if (section) {
+          section.value = (op.args["value"] as number | undefined) ?? 0;
+          // A kit may ride along — this is "expanding to a mini-XY":
+          // the controller adopts new corners mid-performance.
+          const kit = op.args["kit"] as Kit | undefined;
+          if (kit) section.kit = kit;
+          controllerFill(buffer, section, op, frame);
+        }
+        break;
+      }
+      case "persistSection": {
+        const id = op.args["id"] as string | undefined;
+        const section = id ? sections.get(id) : undefined;
+        if (section) section.persisted = true;
+        break;
+      }
       // Unknown ops from a future gubble replay as no-ops rather than
       // crashes — an old reader shows you what it CAN of a newer
       // document. (Forward-compat posture, [PLACED DEFAULT — §19].)
@@ -316,5 +430,10 @@ export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffe
         break;
     }
   }
-  return buffer;
+  return { buffer, sections: [...sections.values()], selection };
+}
+
+/** The buffer-only face of replayFull — most callers just want the picture. */
+export function replay(doc: GubbleDoc, opts: { frame?: number } = {}): CellBuffer {
+  return replayFull(doc, opts).buffer;
 }

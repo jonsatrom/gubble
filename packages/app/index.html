@@ -35,8 +35,24 @@
     .chip .id { color: var(--dim); font-size: 10px; }
 
     /* ── the page ── */
-    #stage { flex: 1; display: grid; place-items: center; overflow: auto; }
+    #stage { flex: 1; display: grid; place-items: center; overflow: auto; position: relative; }
     #grid { image-rendering: pixelated; }
+
+    /* ── controllers: the mixer that materializes ON a selection (§11) ── */
+    .controller {
+      position: absolute; display: flex; flex-direction: column; align-items: center;
+      gap: 2px; background: rgba(22, 22, 27, 0.88); border: 1px solid var(--line);
+      border-radius: 4px; padding: 4px 3px; z-index: 5;
+    }
+    .controller.persisted { border-color: var(--hot); }
+    .controller input[type="range"] {
+      writing-mode: vertical-lr; direction: rtl;
+      width: 16px; flex: 1; min-height: 60px; accent-color: var(--hot);
+    }
+    .controller .cbtn {
+      width: 20px; height: 18px; padding: 0; font-size: 10px; line-height: 1;
+      flex: 0 0 auto;
+    }
     /* The mirror: real characters, always — offscreen but real. Copy
        reads THIS, never the canvas (§5.1). */
     #mirror { position: absolute; left: -200vw; top: 0; }
@@ -96,6 +112,7 @@
   <main id="stage">
     <canvas id="grid"></canvas>
     <canvas id="flow" style="display: none;"></canvas>
+    <div id="controllers"></div>
     <pre id="mirror"></pre>
   </main>
 
@@ -150,6 +167,9 @@
         <button id="vb-invert" title="ink inversion via the ramp">INVERT</button>
         <button id="vb-posterize" title="3-step ramp collapse">POSTER</button>
         <button id="vb-fillWith" title="the current kit, fenced to the selection">FILL◱</button>
+      </div>
+      <div class="row">
+        <button id="vb-spawn" title="a mixer materializes ON the selection — no text tool on earth does this (§11)">⌖ SPAWN CONTROLLER</button>
       </div>
     </div>
     <div class="row">

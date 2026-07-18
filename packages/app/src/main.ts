@@ -11,9 +11,11 @@ import {
   createDocument,
   appendOp,
   truncate,
-  replay,
+  replayFull,
   deriveSeed,
   kitFill,
+  fenceKitFill,
+  boostKit,
   NEUTRAL_EFFECTS,
   encodeDuctusUrl,
   decodeDuctusUrl,
@@ -24,6 +26,7 @@ import {
   type Corners,
   type Ductus,
   type CellBuffer,
+  type SectionState,
   weightedPick,
   deriveUnit,
 } from "@gubble/core";
@@ -71,6 +74,15 @@ let flowCursor: FlowCursor | null = null;
 let selAnchor: number | null = null; // cell index where the drag started
 let selHead: number | null = null; // cell index under the pointer now
 let selecting = false;
+
+// ── controller state (M4b) ─────────────────────────────────────────────
+// A slider mid-drag is ephemeral performance; its RELEASE is history
+// (one moveController op, §4.1 coalescing). The live preview fills with
+// the seed the release op WILL get — preview honesty, third outing.
+let liveMove: { id: string; value: number } | null = null;
+const hiddenControllers = new Set<string>(); // local dismissals; the log forgets nothing
+let lastSections: SectionState[] = [];
+let controllersSig = "";
 
 // Corner-swap crossfade (§10): swaps are performable moves, not menu
 // operations. When a corner changes, the page dissolves toward the new
@@ -128,10 +140,36 @@ function flash(message: string): void {
 }
 
 // ── render ─────────────────────────────────────────────────────────────
+// THE GESTURE-SPEED CACHE (soul-audit fix): replay() costs one full
+// fill per committed op, and a performance ACCUMULATES ops — without
+// this cache, every puck-drag frame re-fought the entire set's history,
+// so the instrument got slower the longer you played it. Backwards.
+// Now committed history replays only when history actually changes
+// (new op, undo, reseed — or per-frame ONLY if some committed op
+// carries phase and therefore genuinely breathes). Gestures pay for
+// exactly one preview fill, forever, regardless of set length.
+let committedKey = "";
+let committedBuf: CellBuffer | null = null;
+
+function committedBuffer(): CellBuffer {
+  const breathing = doc.ops.some(
+    (op) => (((op.args["kit"] as Kit | undefined)?.effects.phase ?? 0) > 0),
+  );
+  const key = `${doc.header.docSeed}·${doc.ops.length}·${breathing ? frame : "still"}`;
+  if (key !== committedKey || !committedBuf) {
+    committedKey = key;
+    const result = replayFull(doc, { frame });
+    committedBuf = result.buffer;
+    lastSections = result.sections; // the page's anatomy rides the same replay
+  }
+  return committedBuf;
+}
+
 function currentBuffer(corners: Corners = kit.corners): CellBuffer {
-  // Committed history first…
-  const buffer = replay(doc, { frame });
-  // …then the pending mark, drawn with the seed the next op WILL get.
+  // Clone the cached history (resized-to-same-size IS a clone — it
+  // copies every cell), then lay the pending mark over it with the
+  // seed the next op WILL get.
+  const buffer = committedBuffer().resized(COLS, ROWS);
   if (corners.some(Boolean)) {
     kitFill(
       buffer,
@@ -140,6 +178,22 @@ function currentBuffer(corners: Corners = kit.corners): CellBuffer {
       doc.ops.length,
       { frame },
     );
+  }
+  // A slider mid-drag: fence-fill its section at the drag value, with
+  // the exact seed the release op will get — what you hear while
+  // dragging is what the log will remember.
+  if (liveMove && liveMove.value > 0) {
+    const section = lastSections.find((s) => s.id === liveMove!.id);
+    if (section) {
+      fenceKitFill(
+        buffer,
+        boostKit(section.kit, liveMove.value),
+        deriveSeed(doc.header.docSeed, doc.ops.length),
+        doc.ops.length,
+        section.range,
+        frame,
+      );
+    }
   }
   return buffer;
 }
@@ -303,6 +357,8 @@ function render(): void {
   if (view === "flow") renderFlowView(mirrorLines.join("\n"));
 
   if (cornerSwap) requestAnimationFrame(render);
+
+  syncControllers();
 
   if (flashTimer) return; // a message is borrowing the readout; facts resume shortly
   readout.textContent =
@@ -620,6 +676,118 @@ for (const verb of ["redact", "mistranscode", "invert", "posterize", "fillWith"]
     });
     render();
   });
+}
+
+// ── spawn a controller (M4b): the mixer materializes ON the selection ──
+$("#vb-spawn").addEventListener("click", () => {
+  if (selAnchor === null || selHead === null) return;
+  appendOp(doc, {
+    op: "spawnController",
+    scope: { kind: "selection" },
+    args: {
+      range: { from: Math.min(selAnchor, selHead), to: Math.max(selAnchor, selHead) },
+      kit: JSON.parse(JSON.stringify(kit)) as Kit,
+    },
+  });
+  render(); // the controller appears under the hand, playable immediately
+});
+
+// ── controller overlays: instruments pinned to the page's anatomy ─────
+const controllersLayer = $("#controllers");
+
+function syncControllers(): void {
+  controllersLayer.style.display = view === "grid" ? "" : "none";
+  const visible = lastSections.filter((s) => !hiddenControllers.has(s.id));
+
+  // Rebuild the DOM only when the anatomy changes; reposition always.
+  const sig = visible.map((s) => `${s.id}:${s.persisted}`).join("|");
+  if (sig !== controllersSig) {
+    controllersSig = sig;
+    controllersLayer.innerHTML = "";
+    for (const section of visible) {
+      const el = document.createElement("div");
+      el.className = "controller";
+      el.dataset["id"] = section.id;
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = "0";
+      slider.max = "1";
+      slider.step = "0.01";
+      slider.value = String(section.value);
+      slider.title = "intensity — the drag is preview, the release is history";
+      slider.addEventListener("input", () => {
+        liveMove = { id: section.id, value: Number(slider.value) };
+        render();
+      });
+      slider.addEventListener("change", () => {
+        liveMove = null;
+        appendOp(doc, {
+          op: "moveController",
+          scope: { kind: "selection" },
+          args: { id: section.id, value: Number(slider.value) },
+        });
+        render();
+      });
+
+      const mkBtn = (label: string, title: string, onClick: () => void): HTMLButtonElement => {
+        const b = document.createElement("button");
+        b.className = "cbtn";
+        b.textContent = label;
+        b.title = title;
+        b.addEventListener("click", onClick);
+        return b;
+      };
+
+      el.append(
+        mkBtn("×", "dismiss this handle (the log forgets nothing; you just stop seeing it)", () => {
+          hiddenControllers.add(section.id);
+          syncControllers();
+        }),
+        slider,
+        mkBtn("⧉", "adopt the pad's current corners — the mini-XY expansion (§11)", () => {
+          appendOp(doc, {
+            op: "moveController",
+            scope: { kind: "selection" },
+            args: {
+              id: section.id,
+              value: Number(slider.value),
+              kit: JSON.parse(JSON.stringify(kit)) as Kit,
+            },
+          });
+          render();
+        }),
+        mkBtn("◆", "persist: this selection-with-a-controller becomes a SECTION (§11)", () => {
+          appendOp(doc, { op: "persistSection", scope: { kind: "selection" }, args: { id: section.id } });
+          render();
+        }),
+      );
+      controllersLayer.appendChild(el);
+    }
+  }
+
+  // Position pass: pin each controller to its range's right flank.
+  const stageEl = $("#stage");
+  const stageRect = stageEl.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  let stackOffset = 0;
+  for (const el of controllersLayer.children as HTMLCollectionOf<HTMLElement>) {
+    const section = visible.find((s) => s.id === el.dataset["id"]);
+    if (!section) continue;
+    el.classList.toggle("persisted", section.persisted);
+    const rowLo = Math.floor(Math.min(section.range.from, section.range.to) / COLS);
+    const rowHi = Math.floor(Math.max(section.range.from, section.range.to) / COLS);
+    const top = canvasRect.top - stageRect.top + stageEl.scrollTop + rowLo * CELL_H;
+    const height = Math.max(88, (rowHi - rowLo + 1) * CELL_H);
+    el.style.top = `${top}px`;
+    // Pinned at the selection's END CELL — where the gesture finished,
+    // the controller appears. Under the hand, literally (§11). The
+    // instrument sits ON the material it plays.
+    const endCol = Math.max(section.range.from, section.range.to) % COLS;
+    el.style.left = `${canvasRect.left - stageRect.left + stageEl.scrollLeft + Math.min(endCol * CELL_W, COLS * CELL_W - 34) + stackOffset}px`;
+    el.style.height = `${height}px`;
+    stackOffset += 34; // neighbors shelve sideways instead of stacking blind
+  }
 }
 
 // ── PHASE: the flutter loop ────────────────────────────────────────────
