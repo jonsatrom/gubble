@@ -17,65 +17,87 @@ It is not boilerplate; it is the contract.
 ## THE LEDGER — current state, brutally factual
 
 This section is the front door, not the sediment. It gets REWRITTEN as
-reality moves; dated history lives in the milestone briefs (M3-BRIEF.md,
-git log) and stays put. If prose here contradicts running code, the
-prose is the bug. Last verified: 2026-07-18.
+reality moves; dated history lives in git log and stays put. If prose
+here contradicts running code, the prose is the bug. Last verified:
+2026-07-18. **v1's core loop is complete and playable — it is NOT a
+100%-of-spec checklist pass. The gap below (effects roster) is real and
+is the single biggest thing between here and a spec-complete v1.**
 
-**Verify ritual:** `nvm use && npm run verify` — runs every core test
-(125) and typechecks the app. Green means the promises below held.
+**Verify ritual:** `nvm use && npm run verify` — build + every core test
+(141) + app typecheck. Green means the promises below held.
 
-**ALIVE** (built, crossing-tested, playable now):
+**ALIVE** (built, crossing-tested against real behavior, playable now):
 - `gubble compile` CLI: census → ductus + specimen; mix/fill/link/census
   verbs (`./gubble …` from repo root; see FEEDING.md)
 - Event log: state = replay(ops), undo = truncation, fork with lineage.
   RECORDS HANDS, not just choices (Jon's ruling, 2026-07-18): puck drags
-  (`movePuck`) and corner swaps (`swapCorner`) are logged gestures,
-  path-sampled ≤20Hz, not just the moments you hit STAMP. Inert on the
-  buffer today (`fill` stays self-contained so a single op still grafts
-  cleanly) — waits for v2 playback to actually walk the paths. Real
-  consequence, tested: a stamp's seed depends on its INDEX, so gesture
-  ops before it change what it draws — hands are woven into the
-  generative math, not decoration on top of it. Measured cost: a
+  (`movePuck`), corner swaps (`swapCorner`), and distillations (`distill`)
+  are all logged gestures, path-sampled ≤20Hz where continuous — not
+  just the moments you hit STAMP. Inert on the buffer (`fill` stays
+  self-contained so a single op still grafts cleanly) — waits for v2
+  playback to actually walk the paths. Real tested consequence: a
+  stamp's seed depends on its INDEX, so gesture ops before it change
+  what it draws — hands are woven into the generative math. Measured: a
   realistic 20-min set (300 drags : 80 stamps) runs ~16KB as a URL,
-  barely more than choices-only would have — kit-carrying stamps were
-  always the heavy payload, not the gesture paths.
+  barely more than choices-only — kit-carrying stamps were always the
+  heavy payload, not the gesture paths.
 - GRID + FLOW: two performances of one buffer (FLOW: Pretext, vw=stream
   / chars=grid-faithful, cursor displacer; dominant-corner fontHints)
-- The mixer: bilinear corners, per-cell shimmer, ~2s seeded crossfades,
-  density/grain/phase at page scope (PHASE = integer-frame flutter,
-  freezable mid-shimmer)
+- The mixer: bilinear corners, per-cell shimmer, ~2s seeded crossfades.
+  **Only density/grain/phase are live sliders — see the flagged gap below.**
 - Selection: drag-select, applyOnce verbs (redact / invert / posterize /
   fillWith / mistranscode with REAL cp1252 math), spawnable controllers
   (select text → mixer materializes on it), persistSection
+- DISTILL (minimal cut, §7.5): select → census → new folder-less
+  aesthetic, docked in the rail, playable immediately. The loop "fill →
+  mark → distill → fill with what you distilled" closes. Named
+  deterministically from the resulting ductus's own content-hash id, not
+  Math.random.
+- Provenance inspector (§14.1): hover a GRID cell, see which aesthetic
+  + which op inked it, live.
+- Hazard marker (§15.3): rail chips carrying a hazardous ductus show ⚠.
+  Verified against a genuinely hazardous aesthetic (real RTL-override
+  detection), loaded through the actual `?a=` path — not faked.
 - Sharing: ?a= aesthetics, ?k= kits, ?g= whole documents with at/f/mode
-  (view|edit); URLs minted at the running origin; arrived documents FORK
-  at first touch with lineage stamped; frozen (?f=&mode=view) arrivals
-  hold still until touched; FREEZE stamps the moment, mints its URL,
-  opens print
+  (view|edit — NOT replay, unparsed on purpose); URLs mint at the
+  running origin; arrived documents FORK at first committed touch with
+  lineage stamped; frozen (?f=&mode=view) arrivals hold still until
+  touched; FREEZE stamps the moment, mints its URL, opens print.
 - STRATA view (op-age tint — §14.1's inspector, first face)
 - `.gbbl`: the whole performance as a real, standards-compliant ZIP
   (header.json + ops.jsonl + thumb.txt, STORED not DEFLATEd, fixed
   1980-01-01 timestamps so identical documents produce byte-identical
   files). EXPORT/IMPORT in the app; import is an arrival like a shared
-  URL — forks at first touch, same as `?g=`. Verified against the REAL
-  system `unzip`, not just our own decoder: `unzip -l` lists it cleanly,
-  `unzip -p thumb.txt` shows the actual composition to a tool that has
-  never heard of gubble — "a package that is also its own screenshot,"
-  per §4.2, literally true. This is the overflow path when a URL gets
-  too big to hand someone.
+  URL. Verified against the REAL system `unzip`, not just our own
+  decoder — including a browser-fingerprint cross-check of the actual
+  export button's output, not just a Node-side round-trip.
+
+**THE REAL GAP — effects roster** (§9 names 8 scope-attachable effects:
+density, grain, phase, drip, jitter, symmetry, blur, filters). Only the
+first 3 are live, performable sliders. Drip/jitter/symmetry exist as
+census-measured `ductus.vector` properties that DO shape the mix
+(`mixVectors` reads them) but aren't independently controllable at
+page/section scope. Blur and filters (invert/posterize) exist ONLY as
+one-shot `applyOnce` verbs on a selection, not as continuous
+scope-attachable effects the way §9 describes. Closing this is the
+highest-value remaining chunk.
 
 **PARTIAL** (exists, but less than the spec's full sentence):
 - `physical` width regime: linked size↔chars readout only; print-unit
   enforcement lands with paged print work
-- Hazard handling: census flags + ductus hazard bit exist; the app has
-  no consent dramaturgy yet (§15.3's informed-consent UI is absent)
-- Provenance: recorded per-cell and colorable, but no hover inspector
+- Hazard UX: detection + marker exist; no consent GATE (§15.3's
+  informed-consent dramaturgy — "here's what's hazardous, choose" — isn't
+  built, just the label)
 - `main.ts` holds nearly the whole app; decomposition along project
-  concepts is queued (see packages/app/README.md)
+  concepts is queued (see packages/app/README.md); `gesture.ts` is the
+  only cut made so far
 
 **ABSENT** (v1 spec says yes; not built):
-- Image census (luminance→ink, k-means→swatches)
-- In-app distill panel (§7.5)
+- Image census (luminance→ink, k-means→swatches) — nothing here at all;
+  the CLI just warns and skips images it finds
+- The full distill proposal panel (live-manipulable pre-naming — click
+  glyphs to strike, drag vector params) — only the minimal closed-loop
+  cut above exists
 
 **TABLED** (deliberately parked, on the record):
 - `replay` URL mode → v2 playback UI (parsed nowhere, honestly)
@@ -84,7 +106,7 @@ prose is the bug. Last verified: 2026-07-18.
 - Async/LLM brushes 🪲 (§19's contractually recurring bug)
 
 ```
-packages/core  → the math + the log (framework-free TS, 125 tests)
+packages/core  → the math + the log (framework-free TS, 141 tests)
 packages/cli   → gubble compile/census/specimen/link/mix/fill
 packages/app   → the instrument (Vite; npm run dev --workspace=@gubble/app)
 aesthetics/    → compiled ductus+specimen travel; sources/ stay home (Directive 6)
