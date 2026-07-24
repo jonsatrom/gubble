@@ -27,7 +27,18 @@ prose is the bug. Last verified: 2026-07-18.
 **ALIVE** (built, crossing-tested, playable now):
 - `gubble compile` CLI: census → ductus + specimen; mix/fill/link/census
   verbs (`./gubble …` from repo root; see FEEDING.md)
-- Event log: state = replay(ops), undo = truncation, fork with lineage
+- Event log: state = replay(ops), undo = truncation, fork with lineage.
+  RECORDS HANDS, not just choices (Jon's ruling, 2026-07-18): puck drags
+  (`movePuck`) and corner swaps (`swapCorner`) are logged gestures,
+  path-sampled ≤20Hz, not just the moments you hit STAMP. Inert on the
+  buffer today (`fill` stays self-contained so a single op still grafts
+  cleanly) — waits for v2 playback to actually walk the paths. Real
+  consequence, tested: a stamp's seed depends on its INDEX, so gesture
+  ops before it change what it draws — hands are woven into the
+  generative math, not decoration on top of it. Measured cost: a
+  realistic 20-min set (300 drags : 80 stamps) runs ~16KB as a URL,
+  barely more than choices-only would have — kit-carrying stamps were
+  always the heavy payload, not the gesture paths.
 - GRID + FLOW: two performances of one buffer (FLOW: Pretext, vw=stream
   / chars=grid-faithful, cursor displacer; dominant-corner fontHints)
 - The mixer: bilinear corners, per-cell shimmer, ~2s seeded crossfades,

@@ -52,7 +52,24 @@ export type OpKind =
   | "applyOnce"
   | "spawnController"
   | "moveController"
-  | "persistSection";
+  | "persistSection"
+  | "movePuck"
+  | "swapCorner";
+
+/**
+ * One sample in a coalesced gesture path (§4.1's coalescing rule:
+ * "continuous gestures log as one op with a sampled path, max ~20Hz,
+ * or the log bloats and playback jitters"). `t` is milliseconds since
+ * the GESTURE started, not wall-clock — same rule as op.t itself: time
+ * is pacing, recorded relative to something, never an absolute clock
+ * value baked into generation math (there's no generation math here at
+ * all; a gesture path is raw recorded input, not a seed for anything).
+ */
+export interface GestureSample {
+  x: number;
+  y: number;
+  t: number;
+}
 
 /**
  * A linear selection (§11): text-editor semantics over the grid —
@@ -423,6 +440,22 @@ export function replayFull(doc: GubbleDoc, opts: { frame?: number } = {}): Repla
         if (section) section.persisted = true;
         break;
       }
+      case "movePuck":
+      case "swapCorner":
+        // Hands over choices: these ops exist so a document remembers
+        // the puck leaning and the corners changing, not just the
+        // moments someone hit STAMP — Jon's ruling, 2026-07-18, on the
+        // spec's own long-standing v1 op table (§4.1 names both; this
+        // is the first build). They're deliberately INERT on the
+        // buffer today: `fill` stays self-contained, carrying its own
+        // full kit snapshot, so a single fill op still grafts cleanly
+        // onto a foreign document without needing to replay the
+        // gesture history that led to it (§ graft: "ops are
+        // deterministic but substrate-dependent" — a fill shouldn't
+        // depend on ITS OWN document's puck-drag biography either).
+        // What's recorded here waits for v2's playback UI, which is
+        // the first thing that will actually walk these paths.
+        break;
       // Unknown ops from a future gubble replay as no-ops rather than
       // crashes — an old reader shows you what it CAN of a newer
       // document. (Forward-compat posture, [PLACED DEFAULT — §19].)

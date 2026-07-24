@@ -37,6 +37,7 @@ import {
 // The seed library, imported straight from the repo's aesthetics/
 // folders — the studio and the instrument share one substrate.
 import { renderFlow, ensureFonts, type FlowRegime, type FlowCursor } from "./flow.js";
+import { GestureSampler } from "./gesture.js";
 import { bilinearWeights } from "@gubble/core";
 
 import gradientBlocks from "../../../aesthetics/gradient-blocks/ductus.json";
@@ -488,6 +489,11 @@ for (let k = 0; k < 4; k++) {
       // is the destination immediately; the theater is preview-only.
       cornerSwap = { k, from: kit.corners[k] ?? null, start: performance.now() };
       kit.corners[k] = d;
+      // Hands over choices: the swap itself is a logged gesture now
+      // (§4.1's swapCorner, built 2026-07-18), not just whatever fill
+      // happens to follow it. Discrete by nature — a drop, not a drag —
+      // so no path-sampling needed, unlike the puck.
+      logOp({ op: "swapCorner", scope: { kind: "page" }, args: { corner: k, aesId: d?.id ?? null } });
     }
     refreshCorners();
     render();
@@ -495,18 +501,47 @@ for (let k = 0; k < 4; k++) {
 }
 
 // ── puck ───────────────────────────────────────────────────────────────
+// Hands over choices (Jon's ruling, 2026-07-18): the puck's whole drag
+// path is sampled and logged as ONE movePuck op on release — not just
+// the STAMP moments. See log.ts's movePuck case for why it's inert on
+// the buffer today (fill stays self-contained; the path waits for v2
+// playback to actually walk it) and gesture.ts for the ≤20Hz throttle.
 function placePuck(): void {
   puckEl.style.left = `${kit.puck.x * 100}%`;
   puckEl.style.top = `${kit.puck.y * 100}%`;
 }
 let dragging = false;
+const puckSampler = new GestureSampler();
 pad.addEventListener("pointerdown", (e) => {
   dragging = true;
-  pad.setPointerCapture(e.pointerId);
+  try {
+    pad.setPointerCapture(e.pointerId);
+  } catch {
+    // synthetic events carry pointer ids the browser never registered —
+    // capture is a nicety, not a requirement. Uncaught here, this
+    // silently skipped movePuck() and puckSampler.begin() below —
+    // found via a synthetic-event test where a gesture's first
+    // timestamp came out as raw performance.now() instead of ~0,
+    // because begin() never ran to set startedAt. The canvas handler
+    // already had this guard; the pad handler had drifted from it.
+  }
   movePuck(e);
+  puckSampler.begin(kit.puck.x, kit.puck.y);
 });
-pad.addEventListener("pointermove", (e) => dragging && movePuck(e));
-pad.addEventListener("pointerup", () => (dragging = false));
+pad.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  movePuck(e);
+  puckSampler.sample(kit.puck.x, kit.puck.y);
+});
+pad.addEventListener("pointerup", () => {
+  if (!dragging) return;
+  dragging = false;
+  const path = puckSampler.finish(kit.puck.x, kit.puck.y);
+  // A tap that never moved is still a touch: even a 1-sample path forks
+  // an arrived document and enters the biography. Leaning is touching.
+  logOp({ op: "movePuck", scope: { kind: "page" }, args: { path } });
+  render(); // readout may now show fork@N
+});
 function movePuck(e: PointerEvent): void {
   arrivedFrozen = false; // leaning IS touching — a frozen arrival wakes under the hand
   const rect = pad.getBoundingClientRect();
@@ -818,16 +853,29 @@ function syncControllers(): void {
       slider.step = "0.01";
       slider.value = String(section.value);
       slider.title = "intensity — the drag is preview, the release is history";
+      // One axis, so the shared 2-D sampler carries value on x and
+      // leaves y at 0 — same throttle, same GestureSample shape as the
+      // puck, rather than inventing a second recording mechanism for
+      // what's really the same idea (a hand, moving, over time).
+      const moveSampler = new GestureSampler();
+      let moveStarted = false;
+      slider.addEventListener("pointerdown", () => {
+        moveStarted = true;
+        moveSampler.begin(Number(slider.value), 0);
+      });
       slider.addEventListener("input", () => {
         liveMove = { id: section.id, value: Number(slider.value) };
+        if (moveStarted) moveSampler.sample(Number(slider.value), 0);
         render();
       });
       slider.addEventListener("change", () => {
         liveMove = null;
+        const path = moveStarted ? moveSampler.finish(Number(slider.value), 0) : undefined;
+        moveStarted = false;
         logOp({
           op: "moveController",
           scope: { kind: "selection" },
-          args: { id: section.id, value: Number(slider.value) },
+          args: { id: section.id, value: Number(slider.value), ...(path ? { path } : {}) },
         });
         render();
       });
@@ -911,3 +959,8 @@ setInterval(() => {
 refreshCorners();
 placePuck();
 render();
+
+// A live getter, not a snapshot (doc is reassigned on fork/reseed/load)
+// — devtools inspection of the actual document, on-brand for a tool
+// that treats provenance as visible material rather than a black box.
+(window as unknown as { gubble: { doc: () => GubbleDoc } }).gubble = { doc: () => doc };

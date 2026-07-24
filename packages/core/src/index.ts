@@ -62,6 +62,7 @@ export type {
   ApplyVerb,
   SectionState,
   ReplayResult,
+  GestureSample,
 } from "./log.js";
 export { mistranscode, redactGlyph, invertGlyph, posterizeGlyph } from "./corrupt.js";
 export { weightedPick, applyStack, ZALGO_MARKS } from "./draw.js";
