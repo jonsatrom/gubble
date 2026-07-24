@@ -64,8 +64,8 @@ export type {
   ReplayResult,
   GestureSample,
 } from "./log.js";
-export { mistranscode, redactGlyph, invertGlyph, posterizeGlyph } from "./corrupt.js";
-export { weightedPick, applyStack, ZALGO_MARKS } from "./draw.js";
+export { mistranscode, redactGlyph, invertGlyph, posterizeGlyph, thresholdGlyph } from "./corrupt.js";
+export { weightedPick, applyStack, ZALGO_MARKS, mirrorGlyph, glyphsMirror, MIRROR_PAIRS } from "./draw.js";
 export {
   bilinearWeights,
   mixVectors,
@@ -74,7 +74,7 @@ export {
   kitFill,
   NEUTRAL_EFFECTS,
 } from "./mixer.js";
-export type { Kit, Corners, EffectState, MixedVector } from "./mixer.js";
+export type { Kit, Corners, EffectState, MixedVector, FilterMode } from "./mixer.js";
 export { encodeKitUrl, decodeKitUrl } from "./kit.js";
 export { crc32 } from "./crc32.js";
 export { encodeGbbl, decodeGbbl } from "./gbbl.js";

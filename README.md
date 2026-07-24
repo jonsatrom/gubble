@@ -19,9 +19,10 @@ It is not boilerplate; it is the contract.
 This section is the front door, not the sediment. It gets REWRITTEN as
 reality moves; dated history lives in git log and stays put. If prose
 here contradicts running code, the prose is the bug. Last verified:
-2026-07-18. **v1's core loop is complete and playable — it is NOT a
-100%-of-spec checklist pass. The gap below (effects roster) is real and
-is the single biggest thing between here and a spec-complete v1.**
+2026-07-18. **v1's core loop is complete and playable, INCLUDING the
+full effects roster now (closed same night as the v1.0.0 tag) — but
+it's still not a 100%-of-spec checklist pass.** Image census and the
+full distill proposal panel remain genuinely absent; see ABSENT below.
 
 **Verify ritual:** `nvm use && npm run verify` — build + every core test
 (141) + app typecheck. Green means the promises below held.
@@ -44,7 +45,18 @@ is the single biggest thing between here and a spec-complete v1.**
 - GRID + FLOW: two performances of one buffer (FLOW: Pretext, vw=stream
   / chars=grid-faithful, cursor displacer; dominant-corner fontHints)
 - The mixer: bilinear corners, per-cell shimmer, ~2s seeded crossfades.
-  **Only density/grain/phase are live sliders — see the flagged gap below.**
+  **All 8 of §9's named effects are live now** (closed 2026-07-18, "before
+  zzz"): density/grain/phase (M2) plus drip/jitter/symmetry/blur/filter
+  (M6). The last five needed real neighbor-awareness the original
+  per-cell-pure `cellDraw` didn't have — split into `naturalDraw` (the
+  original pure primitive) plus a post-effects layer that calls it AGAIN
+  at specific neighbor indices (the cell above for drip, a mirror
+  partner for symmetry, a plus-neighborhood for blur) — each lookup
+  stays pure, same trick run-continuation already used. Verified against
+  census's OWN drip/symmetry measurements (the instrument checking
+  itself two ways), not just typechecked. New EffectState fields are
+  OPTIONAL — every kit shared before tonight still loads and behaves
+  identically (tested directly, not assumed).
 - Selection: drag-select, applyOnce verbs (redact / invert / posterize /
   fillWith / mistranscode with REAL cp1252 math), spawnable controllers
   (select text → mixer materializes on it), persistSection
@@ -72,15 +84,6 @@ is the single biggest thing between here and a spec-complete v1.**
   decoder — including a browser-fingerprint cross-check of the actual
   export button's output, not just a Node-side round-trip.
 
-**THE REAL GAP — effects roster** (§9 names 8 scope-attachable effects:
-density, grain, phase, drip, jitter, symmetry, blur, filters). Only the
-first 3 are live, performable sliders. Drip/jitter/symmetry exist as
-census-measured `ductus.vector` properties that DO shape the mix
-(`mixVectors` reads them) but aren't independently controllable at
-page/section scope. Blur and filters (invert/posterize) exist ONLY as
-one-shot `applyOnce` verbs on a selection, not as continuous
-scope-attachable effects the way §9 describes. Closing this is the
-highest-value remaining chunk.
 
 **PARTIAL** (exists, but less than the spec's full sentence):
 - `physical` width regime: linked size↔chars readout only; print-unit
@@ -106,7 +109,7 @@ highest-value remaining chunk.
 - Async/LLM brushes 🪲 (§19's contractually recurring bug)
 
 ```
-packages/core  → the math + the log (framework-free TS, 141 tests)
+packages/core  → the math + the log (framework-free TS, 153 tests)
 packages/cli   → gubble compile/census/specimen/link/mix/fill
 packages/app   → the instrument (Vite; npm run dev --workspace=@gubble/app)
 aesthetics/    → compiled ductus+specimen travel; sources/ stay home (Directive 6)

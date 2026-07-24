@@ -49,3 +49,23 @@ export function applyStack(
 
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 export const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
+
+// Mirror pairs: a "(" on the left answering a ")" on the right IS
+// symmetry, even though the characters differ. Shared by census.ts
+// (MEASURING symmetry, §7.3) and mixer.ts (ENFORCING it, §9's symmetry
+// effect) — one table, because "how gubble understands mirroring"
+// shouldn't have two answers depending which direction you're going.
+export const MIRROR_PAIRS: Record<string, string> = {
+  "(": ")", "[": "]", "{": "}", "<": ">", "/": "\\",
+  "◢": "◣", "◤": "◥", "⟅": "⟆", "꒰": "꒱", "୨": "୧",
+  "╭": "╮", "╰": "╯", "▖": "▗", "▘": "▝", "▙": "▟", "▛": "▜",
+};
+
+export function glyphsMirror(a: string, b: string): boolean {
+  return a === b || MIRROR_PAIRS[a] === b || MIRROR_PAIRS[b] === a;
+}
+
+/** The mirror OF a glyph: its paired partner if one exists, else itself (mirroring a symmetric glyph is a no-op). */
+export function mirrorGlyph(glyph: string): string {
+  return MIRROR_PAIRS[glyph] ?? Object.keys(MIRROR_PAIRS).find((k) => MIRROR_PAIRS[k] === glyph) ?? glyph;
+}

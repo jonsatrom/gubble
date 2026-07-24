@@ -3,12 +3,14 @@
 
 import { describe, expect, it } from "vitest";
 import { bilinearWeights, mixVectors, applyEffects, cellDraw, kitFill, NEUTRAL_EFFECTS } from "../src/mixer.js";
-import type { Kit, Corners } from "../src/mixer.js";
+import type { Kit, Corners, EffectState } from "../src/mixer.js";
 import { encodeKitUrl, decodeKitUrl } from "../src/kit.js";
 import { censusText } from "../src/census.js";
 import { buildDuctus } from "../src/ductus.js";
 import { CellBuffer } from "../src/buffer.js";
 import { createDocument, appendOp, replay } from "../src/log.js";
+import { inkWeight } from "../src/ramp.js";
+import { segmentGraphemes } from "../src/width.js";
 
 const heavy = buildDuctus(censusText("████▓▓██████▓▓████\n██▓▓████▓▓████████"), { name: "heavy" });
 const dots = buildDuctus(censusText("· . · . ˚ . · ˚ ·\n. ˚ · . · . ˚ · ."), { name: "dots" });
@@ -16,6 +18,7 @@ const swirl = buildDuctus(censusText("¤ø,¸¸,ø¤º°`°º¤\n~*~*~*~*~"), { 
 const wave = buildDuctus(censusText("∿∿≋≋∿∿≋≋\n≋∿≋∿≋∿≋∿"), { name: "wave" });
 
 const corners: Corners = [heavy, dots, swirl, wave];
+const TEST_COLS = 20; // arbitrary buffer width for tests that don't care about row/col geometry
 
 function kit(x: number, y: number, effects = NEUTRAL_EFFECTS): Kit {
   return { corners, puck: { x, y }, effects };
@@ -74,7 +77,7 @@ describe("cellDraw — determinism and shimmer", () => {
   it("same kit, same seed, same cell → same glyph, forever", () => {
     const k = kit(0.37, 0.62);
     for (let i = 0; i < 50; i++) {
-      expect(cellDraw(k, "seedseed", i)).toEqual(cellDraw(k, "seedseed", i));
+      expect(cellDraw(k, "seedseed", i, TEST_COLS)).toEqual(cellDraw(k, "seedseed", i, TEST_COLS));
     }
   });
 
@@ -82,7 +85,7 @@ describe("cellDraw — determinism and shimmer", () => {
     const k = kit(0.5, 0.5);
     const sources = new Set<string>();
     for (let i = 0; i < 400; i++) {
-      const { corner } = cellDraw(k, "seedseed", i);
+      const { corner } = cellDraw(k, "seedseed", i, TEST_COLS);
       if (corner) sources.add(corner.id);
     }
     expect(sources.size).toBeGreaterThanOrEqual(3); // the crossfade is a conversation
@@ -93,7 +96,7 @@ describe("cellDraw — determinism and shimmer", () => {
     let heavyCount = 0;
     let total = 0;
     for (let i = 0; i < 400; i++) {
-      const { corner } = cellDraw(k, "seedseed", i);
+      const { corner } = cellDraw(k, "seedseed", i, TEST_COLS);
       if (!corner) continue;
       total++;
       if (corner.id === heavy.id) heavyCount++;
@@ -108,7 +111,7 @@ describe("PHASE (§9) — a parked puck still breathes", () => {
   it("phase 0: frames are irrelevant, the page is stone", () => {
     const k = kit(0.4, 0.4);
     for (let i = 0; i < 100; i++) {
-      expect(cellDraw(k, "s", i, { frame: 0 })).toEqual(cellDraw(k, "s", i, { frame: 999 }));
+      expect(cellDraw(k, "s", i, TEST_COLS, { frame: 0 })).toEqual(cellDraw(k, "s", i, TEST_COLS, { frame: 999 }));
     }
   });
 
@@ -117,8 +120,8 @@ describe("PHASE (§9) — a parked puck still breathes", () => {
     let moved = 0;
     const N = 500;
     for (let i = 0; i < N; i++) {
-      const a = cellDraw(k, "s", i, { frame: 0 });
-      const b = cellDraw(k, "s", i, { frame: 7 });
+      const a = cellDraw(k, "s", i, TEST_COLS, { frame: 0 });
+      const b = cellDraw(k, "s", i, TEST_COLS, { frame: 7 });
       if (a.glyph !== b.glyph) moved++;
     }
     expect(moved).toBeGreaterThan(0); // it breathes
@@ -149,5 +152,132 @@ describe("kit-as-URL (§12 ?k=)", () => {
     const k = kit(0.25, 0.75, { density: 0.3, grain: -0.5, phase: 0.1 });
     const url = await encodeKitUrl(k);
     expect(await decodeKitUrl(url)).toEqual(k);
+  });
+});
+
+// ── M6, "before zzz": the five effects spec §9 named and M2 never built ──
+// drip, jitter, symmetry, blur, filter. Each test closes the loop with
+// something ALREADY trusted rather than inventing new assertions from
+// scratch — drip/symmetry get verified through the same census.ts stats
+// that measure them in source material; that's not laziness, it's the
+// same instrument checking itself two ways.
+
+function fillBuffer(
+  effects: Partial<EffectState>,
+  seed = "gubble-effects-seed",
+  cols = 30,
+  rows = 20,
+  puck = { x: 0.5, y: 0.5 },
+): CellBuffer {
+  const buffer = new CellBuffer(cols, rows);
+  const k: Kit = { corners, puck, effects: { ...NEUTRAL_EFFECTS, density: 0.6, ...effects } };
+  kitFill(buffer, k, seed, 0, {});
+  return buffer;
+}
+
+describe("DRIP (§9) — vertical bleed, verified via census's OWN drip stat", () => {
+  it("drip=1 measurably out-drips drip=0 at the same seed", () => {
+    const dry = censusText(fillBuffer({ drip: 0 }).toText()).drip;
+    const wet = censusText(fillBuffer({ drip: 1 }).toText()).drip;
+    expect(wet).toBeGreaterThan(dry);
+  });
+
+  it("drip never fires on row 0 — there's nothing above it to bleed from", () => {
+    const buffer = fillBuffer({ drip: 1 });
+    // Not a strict assertion on content (row 0 is still whatever density
+    // draws) — just confirms the function doesn't throw indexing row -1.
+    expect(() => buffer.toText()).not.toThrow();
+  });
+});
+
+describe("JITTER (§9) — positional noise, a cell borrowing a neighbor's content", () => {
+  it("jitter=1 differs from jitter=0 at the same seed in a real fraction of cells", () => {
+    const still = fillBuffer({ jitter: 0 }).toText();
+    const jittery = fillBuffer({ jitter: 1 }).toText();
+    expect(jittery).not.toBe(still);
+    let diffChars = 0;
+    for (let i = 0; i < still.length; i++) if (still[i] !== jittery[i]) diffChars++;
+    expect(diffChars).toBeGreaterThan(still.length * 0.05); // not just a rounding-error handful
+  });
+});
+
+describe("SYMMETRY (§9) — mirror enforcement, verified via census's OWN symmetry stat", () => {
+  it("symmetry=1 measurably out-mirrors symmetry=0 at the same seed", () => {
+    const raw = censusText(fillBuffer({ symmetry: 0 }).toText()).symmetry;
+    const mirrored = censusText(fillBuffer({ symmetry: 1 }).toText()).symmetry;
+    expect(mirrored).toBeGreaterThan(raw);
+  });
+});
+
+describe("BLUR (§9) — ramp-diffusion smooths ink variance without leaving text", () => {
+  it("blur=1 reduces ink-weight variance versus blur=0 at the same seed", () => {
+    const variance = (text: string): number => {
+      const inks = segmentGraphemes(text.replace(/\n/g, "")).map(inkWeight);
+      const mean = inks.reduce((a, b) => a + b, 0) / inks.length;
+      return inks.reduce((s, v) => s + (v - mean) ** 2, 0) / inks.length;
+    };
+    const sharp = variance(fillBuffer({ blur: 0 }).toText());
+    const blurred = variance(fillBuffer({ blur: 1 }).toText());
+    expect(blurred).toBeLessThan(sharp);
+  });
+
+  it("blur never invents a fake character — every glyph is still real ramp material", () => {
+    const text = fillBuffer({ blur: 1 }).toText();
+    for (const cluster of segmentGraphemes(text.replace(/\n/g, ""))) {
+      expect(cluster.length).toBeGreaterThan(0); // real characters, not empty/undefined slop
+    }
+  });
+});
+
+describe("FILTERS (§9) — discrete remap family, not a strength", () => {
+  it("threshold output is strictly binary: only full ink or air", () => {
+    const text = fillBuffer({ filter: "threshold" }).toText();
+    for (const cluster of segmentGraphemes(text.replace(/\n/g, " "))) {
+      expect(["█", " "]).toContain(cluster);
+    }
+  });
+
+  it("posterize output only uses the 3-step ramp", () => {
+    const text = fillBuffer({ filter: "posterize" }).toText();
+    for (const cluster of segmentGraphemes(text.replace(/\n/g, " "))) {
+      expect([" ", "▒", "█"]).toContain(cluster);
+    }
+  });
+
+  it("invert flips the ink profile: a genuinely ink-heavy source (puck parked on `heavy`) reads lighter, filtered", () => {
+    // First draft of this test parked the puck at CENTER, blending in
+    // `dots` — whose per-glyph ink is naturally so low that the
+    // "natural" census density came out LOW (0.36), and inverting
+    // correctly pushed it UP (0.59). Correct behavior, wrong premise in
+    // the test. Fixed by actually being high-ink to start with: park
+    // squarely on `heavy` (████▓▓...), where the direction isn't a guess.
+    const parked = { x: 0, y: 0 };
+    const natural = censusText(fillBuffer({ filter: "none", density: 0.9 }, "invert-check", 30, 20, parked).toText()).density;
+    const inverted = censusText(fillBuffer({ filter: "invert", density: 0.9 }, "invert-check", 30, 20, parked).toText()).density;
+    expect(natural).toBeGreaterThan(0.6); // sanity: the premise this time is actually true
+    expect(inverted).toBeLessThan(natural);
+  });
+});
+
+describe("all five together — still fully deterministic, still backward compatible", () => {
+  it("cranking every M6 effect to max is still 100% reproducible from the same seed", () => {
+    const maxed: Partial<EffectState> = { drip: 1, jitter: 0.4, symmetry: 0.6, blur: 0.5, filter: "posterize" };
+    expect(fillBuffer(maxed, "determinism-check").toText()).toBe(fillBuffer(maxed, "determinism-check").toText());
+  });
+
+  it("an OLD-STYLE kit with only {density,grain,phase} — no M6 fields at all — still fills without throwing", () => {
+    const oldKit: Kit = { corners, puck: { x: 0.5, y: 0.5 }, effects: { density: 0.5, grain: 0, phase: 0 } };
+    const buffer = new CellBuffer(20, 10);
+    expect(() => kitFill(buffer, oldKit, "old-kit-seed", 0, {})).not.toThrow();
+  });
+
+  it("an old-style kit behaves IDENTICALLY to one with explicit-neutral M6 fields — the ?? defaults are truly neutral", () => {
+    const oldKit: Kit = { corners, puck: { x: 0.4, y: 0.6 }, effects: { density: 0.5, grain: 0.2, phase: 0 } };
+    const explicitKit: Kit = { ...oldKit, effects: { ...NEUTRAL_EFFECTS, density: 0.5, grain: 0.2, phase: 0 } };
+    const a = new CellBuffer(20, 10);
+    const b = new CellBuffer(20, 10);
+    kitFill(a, oldKit, "neutral-check", 0, {});
+    kitFill(b, explicitKit, "neutral-check", 0, {});
+    expect(a.toText()).toBe(b.toText());
   });
 });

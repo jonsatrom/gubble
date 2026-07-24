@@ -31,6 +31,7 @@ import {
   buildDuctus,
   type GubbleDoc,
   type Kit,
+  type EffectState,
   type Corners,
   type Ductus,
   type CellBuffer,
@@ -562,7 +563,7 @@ function movePuck(e: PointerEvent): void {
 }
 
 // ── sliders ────────────────────────────────────────────────────────────
-for (const name of ["density", "grain", "phase"] as const) {
+for (const name of ["density", "grain", "phase", "drip", "jitter", "symmetry", "blur"] as const) {
   const input = $<HTMLInputElement>(`#fx-${name}`);
   input.addEventListener("input", () => {
     kit.effects[name] = Number(input.value);
@@ -570,6 +571,10 @@ for (const name of ["density", "grain", "phase"] as const) {
     render();
   });
 }
+$<HTMLSelectElement>("#fx-filter").addEventListener("change", () => {
+  kit.effects.filter = $<HTMLSelectElement>("#fx-filter").value as EffectState["filter"];
+  render();
+});
 
 // ── the verbs ──────────────────────────────────────────────────────────
 $("#stamp").addEventListener("click", () => {
@@ -723,11 +728,17 @@ window.addEventListener("hashchange", loadFromHash);
 loadFromHash();
 
 function syncControlsToKit(): void {
-  for (const name of ["density", "grain", "phase"] as const) {
+  for (const name of ["density", "grain", "phase", "drip", "jitter", "symmetry", "blur"] as const) {
+    // A loaded kit may be OLD-STYLE (only density/grain/phase — every
+    // shared ?k= URL minted before tonight is exactly this shape); the
+    // same ?? defaults that make the mixer treat missing fields as
+    // neutral apply here too, so the sliders don't show "undefined".
+    const value = kit.effects[name] ?? 0;
     const input = $<HTMLInputElement>(`#fx-${name}`);
-    input.value = String(kit.effects[name]);
-    $(`#v-${name}`).textContent = String(kit.effects[name]);
+    input.value = String(value);
+    $(`#v-${name}`).textContent = String(value);
   }
+  $<HTMLSelectElement>("#fx-filter").value = kit.effects.filter ?? "none";
   placePuck();
   refreshCorners();
 }

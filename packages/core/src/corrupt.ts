@@ -78,6 +78,11 @@ export function posterizeGlyph(glyph: string): string {
   return w < 0.2 ? " " : w < 0.6 ? "▒" : "█";
 }
 
+/** Threshold: the hardest filter in the family — binary, no ramp survives it (§9 filters). */
+export function thresholdGlyph(glyph: string): string {
+  return inkWeight(glyph) > 0.5 ? "█" : " ";
+}
+
 function rampFor(weight: number): string {
   // Local 5-step ramp for inversion — coarser than nearestRampGlyph on
   // purpose: inversion is a statement, not a restoration.

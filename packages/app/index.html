@@ -85,6 +85,10 @@
     }
     label { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; }
     input[type="range"] { width: 100%; accent-color: var(--hot); }
+    select {
+      width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+      border-radius: 4px; padding: 5px; font: inherit; font-size: 11px; margin-bottom: 2px;
+    }
     .row { display: flex; gap: 6px; }
     button {
       flex: 1; background: var(--bg); color: var(--text); border: 1px solid var(--line);
@@ -159,6 +163,21 @@
       <input type="range" id="fx-grain" min="-1" max="1" step="0.01" value="0" />
       <label>phase <span id="v-phase">0</span></label>
       <input type="range" id="fx-phase" min="0" max="1" step="0.01" value="0" />
+      <label title="vertical bleed: does the cell above bleed down into this one?">drip <span id="v-drip">0</span></label>
+      <input type="range" id="fx-drip" min="0" max="1" step="0.01" value="0" />
+      <label title="positional noise: a cell sometimes borrows a neighbor's content">jitter <span id="v-jitter">0</span></label>
+      <input type="range" id="fx-jitter" min="0" max="1" step="0.01" value="0" />
+      <label title="mirror enforcement across the row's horizontal midpoint">symmetry <span id="v-symmetry">0</span></label>
+      <input type="range" id="fx-symmetry" min="0" max="1" step="0.01" value="0" />
+      <label title="ramp-diffusion: neighborhood ink averaged, remapped to a real glyph">blur <span id="v-blur">0</span></label>
+      <input type="range" id="fx-blur" min="0" max="1" step="0.01" value="0" />
+      <label title="discrete per-cell remap — not a strength, a different question">filter</label>
+      <select id="fx-filter">
+        <option value="none">none</option>
+        <option value="invert">invert</option>
+        <option value="posterize">posterize</option>
+        <option value="threshold">threshold</option>
+      </select>
     </div>
     <div class="row">
       <button id="stamp" title="commit this kit to the log as a fill op">STAMP</button>

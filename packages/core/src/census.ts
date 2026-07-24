@@ -15,6 +15,7 @@
 
 import { segmentGraphemes, clusterWidth, stackDepthOf, isDefaultEmojiPresentation } from "./width.js";
 import { inkWeight } from "./ramp.js";
+import { glyphsMirror } from "./draw.js";
 
 export interface RunLengthStats {
   mean: number;
@@ -47,18 +48,10 @@ export interface CensusStats {
 }
 
 // Mirror pairs for the symmetry score: a "(" on the left answering a ")"
-// on the right IS symmetry, even though the characters differ. This
-// small table catches the usual suspects; everything else scores on
-// straight equality.
-const MIRROR_PAIRS: Record<string, string> = {
-  "(": ")", "[": "]", "{": "}", "<": ">", "/": "\\",
-  "◢": "◣", "◤": "◥", "⟅": "⟆", "꒰": "꒱", "୨": "୧",
-  "╭": "╮", "╰": "╯", "▖": "▗", "▘": "▝", "▙": "▟", "▛": "▜",
-};
-
-function mirrors(a: string, b: string): boolean {
-  return a === b || MIRROR_PAIRS[a] === b || MIRROR_PAIRS[b] === a;
-}
+// on the right IS symmetry, even though the characters differ. Table now
+// lives in draw.ts (glyphsMirror) — mixer.ts's symmetry effect needs the
+// same table to ENFORCE what this file only MEASURES, and a project this
+// obsessive about one-true-implementation shouldn't have two mirror tables.
 
 const RTL_CONTROLS = new Set([0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]);
 const ZERO_WIDTHS = new Set([0x200b, 0x200c, 0x200d, 0xfeff, 0x2060]);
@@ -170,7 +163,7 @@ export function censusText(text: string): CensusStats {
     let matches = 0;
     const half = Math.floor(clusters.length / 2);
     for (let i = 0; i < half; i++) {
-      if (mirrors(clusters[i]!, clusters[clusters.length - 1 - i]!)) matches++;
+      if (glyphsMirror(clusters[i]!, clusters[clusters.length - 1 - i]!)) matches++;
     }
     symWeighted += (matches / half) * clusters.length;
     symWeight += clusters.length;

@@ -259,7 +259,7 @@ export function fenceKitFill(
   const lo = Math.max(0, Math.min(range.from, range.to));
   const hi = Math.min(buffer.cols * buffer.rows - 1, Math.max(range.from, range.to));
   for (let idx = lo; idx <= hi; idx++) {
-    const { glyph, corner } = cellDraw(kit, seed, idx, { frame });
+    const { glyph, corner } = cellDraw(kit, seed, idx, buffer.cols, { frame });
     if (glyph === " ") continue;
     buffer.set(
       Math.floor(idx / buffer.cols),
