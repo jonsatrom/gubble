@@ -24,6 +24,9 @@ import {
   decodeKitUrl,
   encodeDocUrl,
   decodeDocUrl,
+  encodeGbbl,
+  decodeGbbl,
+  crc32,
   type GubbleDoc,
   type Kit,
   type Corners,
@@ -641,6 +644,48 @@ $("#freeze").addEventListener("click", () => {
   });
 });
 
+// ── .gbbl (§4.2): the overflow path when a URL gets too big to hand
+// someone — a real file instead of a link, same document, same replay.
+$("#exportgbbl").addEventListener("click", () => {
+  const bytes = encodeGbbl(doc);
+  // Blob wants a definite ArrayBuffer, not core's more general
+  // ArrayBufferLike return type (which also admits SharedArrayBuffer) —
+  // copying into a fresh Uint8Array settles the type unambiguously.
+  const blob = new Blob([new Uint8Array(bytes)], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gubble-${doc.header.docSeed.slice(0, 8)}-${doc.ops.length}ops.gbbl`;
+  a.click();
+  URL.revokeObjectURL(url);
+  flash(`${(bytes.length / 1024).toFixed(1)}KB .gbbl downloaded — a real zip; unzip -l it if you don't believe it`);
+});
+
+$("#importgbbl").addEventListener("click", () => $<HTMLInputElement>("#gbblfile").click());
+$<HTMLInputElement>("#gbblfile").addEventListener("change", () => {
+  const file = $<HTMLInputElement>("#gbblfile").files?.[0];
+  if (!file) return;
+  void file
+    .arrayBuffer()
+    .then((buf) => {
+      const loaded = decodeGbbl(new Uint8Array(buf));
+      doc = loaded;
+      frame = 0;
+      // Same arrival contract as a #g= URL (§12): a .gbbl is someone
+      // else's document until you touch it, then it forks. No real URL
+      // exists to point lineage at, so the parent is named honestly for
+      // what it actually is — a file, not a link.
+      arrivedFrom = `gbbl:${file.name}`;
+      arrivedFrozen = false;
+      kit.corners = [null, null, null, null];
+      refreshCorners();
+      render();
+      flash(`${file.name} loaded — ${doc.ops.length} ops from a real file, no URL involved. touch it and it forks.`);
+    })
+    .catch(() => flash(`${file.name} didn't decode. broken package is broken — the file itself is unharmed.`));
+  $<HTMLInputElement>("#gbblfile").value = ""; // allow re-importing the same filename later
+});
+
 // ── URL arrival (§12): boot AND hashchange ────────────────────────────
 // A #g= fragment means someone handed this browser a whole performance.
 // Load it, honor at (stop at that op), honor f (freeze the shimmer at
@@ -963,4 +1008,22 @@ render();
 // A live getter, not a snapshot (doc is reassigned on fork/reseed/load)
 // — devtools inspection of the actual document, on-brand for a tool
 // that treats provenance as visible material rather than a black box.
-(window as unknown as { gubble: { doc: () => GubbleDoc } }).gubble = { doc: () => doc };
+(
+  window as unknown as {
+    gubble: { doc: () => GubbleDoc; gbblFingerprint: () => { crc32: number; length: number; docJson: string } };
+  }
+).gubble = {
+  doc: () => doc,
+  // Devtools verification hook: a SHORT, transcription-safe fingerprint
+  // of the exact bytes EXPORT would download (whole-file crc32 + length)
+  // plus the doc's own JSON — small enough to copy reliably, unlike the
+  // full base64 zip (a single mis-copied character in tens of thousands
+  // would silently prove nothing). Cross-check against a fresh Node
+  // encodeGbbl() of the same doc: matching fingerprints mean the
+  // Blob-download path preserves bytes exactly, without ever needing to
+  // transcribe the actual archive by hand.
+  gbblFingerprint: () => {
+    const bytes = encodeGbbl(doc);
+    return { crc32: crc32(bytes), length: bytes.length, docJson: JSON.stringify(doc) };
+  },
+};

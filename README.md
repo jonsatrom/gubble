@@ -53,6 +53,16 @@ prose is the bug. Last verified: 2026-07-18.
   hold still until touched; FREEZE stamps the moment, mints its URL,
   opens print
 - STRATA view (op-age tint — §14.1's inspector, first face)
+- `.gbbl`: the whole performance as a real, standards-compliant ZIP
+  (header.json + ops.jsonl + thumb.txt, STORED not DEFLATEd, fixed
+  1980-01-01 timestamps so identical documents produce byte-identical
+  files). EXPORT/IMPORT in the app; import is an arrival like a shared
+  URL — forks at first touch, same as `?g=`. Verified against the REAL
+  system `unzip`, not just our own decoder: `unzip -l` lists it cleanly,
+  `unzip -p thumb.txt` shows the actual composition to a tool that has
+  never heard of gubble — "a package that is also its own screenshot,"
+  per §4.2, literally true. This is the overflow path when a URL gets
+  too big to hand someone.
 
 **PARTIAL** (exists, but less than the spec's full sentence):
 - `physical` width regime: linked size↔chars readout only; print-unit
@@ -64,7 +74,6 @@ prose is the bug. Last verified: 2026-07-18.
   concepts is queued (see packages/app/README.md)
 
 **ABSENT** (v1 spec says yes; not built):
-- `.gbbl` zip package (header.json + ops.jsonl + thumb.txt)
 - Image census (luminance→ink, k-means→swatches)
 - In-app distill panel (§7.5)
 

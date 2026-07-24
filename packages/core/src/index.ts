@@ -76,6 +76,8 @@ export {
 } from "./mixer.js";
 export type { Kit, Corners, EffectState, MixedVector } from "./mixer.js";
 export { encodeKitUrl, decodeKitUrl } from "./kit.js";
+export { crc32 } from "./crc32.js";
+export { encodeGbbl, decodeGbbl } from "./gbbl.js";
 
 // Not here yet, and deliberately not faked in the meantime:
 //   - image census (§7.3 luminance + k-means chroma) — v1 job, next

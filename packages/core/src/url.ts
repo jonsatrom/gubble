@@ -91,7 +91,9 @@ function base64urlToBytes(text: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-function utf8Encode(text: string): Uint8Array {
+// Exported: gbbl.ts's ZIP entries need the same UTF-8 codec. One
+// implementation, two consumers — the draw.ts lesson applied again.
+export function utf8Encode(text: string): Uint8Array {
   const bytes: number[] = [];
   for (const ch of text) {
     const cp = ch.codePointAt(0)!;
@@ -103,7 +105,7 @@ function utf8Encode(text: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-function utf8Decode(bytes: Uint8Array): string {
+export function utf8Decode(bytes: Uint8Array): string {
   let out = "";
   for (let i = 0; i < bytes.length; ) {
     const b = bytes[i]!;
