@@ -54,7 +54,8 @@ export type OpKind =
   | "moveController"
   | "persistSection"
   | "movePuck"
-  | "swapCorner";
+  | "swapCorner"
+  | "distill";
 
 /**
  * One sample in a coalesced gesture path (§4.1's coalescing rule:
@@ -442,6 +443,13 @@ export function replayFull(doc: GubbleDoc, opts: { frame?: number } = {}): Repla
       }
       case "movePuck":
       case "swapCorner":
+      case "distill":
+        // distill (§7.5, M6): "select region → new folder-less aesthetic."
+        // Same inertness reasoning as movePuck/swapCorner — the resulting
+        // ductus is docked into the RAIL (app-side, local), not written
+        // into the buffer; the op exists so a document remembers that a
+        // distillation happened and what it drew from (§4.1's v1 table
+        // named this from the start, alongside movePuck/swapCorner).
         // Hands over choices: these ops exist so a document remembers
         // the puck leaning and the corners changing, not just the
         // moments someone hit STAMP — Jon's ruling, 2026-07-18, on the

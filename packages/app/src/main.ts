@@ -27,6 +27,8 @@ import {
   encodeGbbl,
   decodeGbbl,
   crc32,
+  censusText,
+  buildDuctus,
   type GubbleDoc,
   type Kit,
   type Corners,
@@ -421,7 +423,12 @@ function addChip(d: Ductus): void {
   chip.innerHTML = `<div class="self"></div><div class="id"></div>`;
   (chip.querySelector(".self") as HTMLElement).textContent = self;
   (chip.querySelector(".self") as HTMLElement).style.color = d.color.swatches[0] ?? "#d8d8e0";
-  (chip.querySelector(".id") as HTMLElement).textContent = `${d.name} · ${d.id}`;
+  // Hazard as labeled genre, not a ban (§15.3): the census already ORs
+  // its detection into meta.hazard and nothing here can un-set it — this
+  // is purely the marker becoming visible, informed consent rendered.
+  const hazardMark = d.meta.hazard ? "⚠ " : "";
+  (chip.querySelector(".id") as HTMLElement).textContent = `${hazardMark}${d.name} · ${d.id}`;
+  if (d.meta.hazard) (chip.querySelector(".id") as HTMLElement).title = "hazard: layout-breaking codepoints present — feral input, not a crime (§15.3)";
   chip.addEventListener("dragstart", (e) => {
     e.dataTransfer!.setData("text/gubble-aes", d.id);
     // Drag OUT copies the aesthetic-URL (§10): the same drag that feeds
@@ -818,9 +825,26 @@ canvas.addEventListener("pointerdown", (e) => {
   render();
 });
 canvas.addEventListener("pointermove", (e) => {
-  if (!selecting) return;
+  if (!selecting) {
+    // Provenance inspector (§14.1, M6): "hover a cell, core-sample its
+    // genealogy." Only when NOT dragging a selection — the two hovers
+    // would fight over meaning otherwise.
+    const idx = cellAt(e);
+    const cell = committedBuffer().get(Math.floor(idx / COLS), idx % COLS);
+    const hover = $("#hoverinfo");
+    if (cell.glyph === " " || cell.glyph === "" || !cell.provenance) {
+      hover.textContent = "";
+    } else {
+      const source = LIBRARY.find((a) => a.id === cell.provenance!.aes);
+      hover.textContent = `⌁ ${source?.name ?? cell.provenance.aes} · op #${cell.provenance.op}`;
+    }
+    return;
+  }
   selHead = cellAt(e);
   render();
+});
+canvas.addEventListener("pointerleave", () => {
+  $("#hoverinfo").textContent = "";
 });
 canvas.addEventListener("pointerup", (e) => {
   if (!selecting) return;
@@ -872,6 +896,62 @@ $("#vb-spawn").addEventListener("click", () => {
     },
   });
   render(); // the controller appears under the hand, playable immediately
+});
+
+// ── DISTILL (§7.5, M6): the reverse of fill ────────────────────────────
+// select region → new folder-less aesthetic. This is the MINIMAL cut:
+// census runs on the selection and the result docks straight into the
+// rail, named and playable. What's deliberately NOT here yet is the
+// live-manipulable proposal panel (§7.5's fuller vision: click glyphs to
+// strike them, drag vector params and watch it re-render before naming
+// it) — that's its own feature, honestly deferred, not silently dropped.
+// "The loop is the soul: fill → mark → distill → fill with what you
+// distilled" — the loop itself closes here; the panel is a later layer
+// on top of it.
+function selectionText(range: { from: number; to: number }): string {
+  const buffer = committedBuffer();
+  const lo = Math.min(range.from, range.to);
+  const hi = Math.min(COLS * ROWS - 1, Math.max(range.from, range.to));
+  const lines: string[] = [];
+  let current = "";
+  let lastRow = Math.floor(lo / COLS);
+  for (let idx = lo; idx <= hi; idx++) {
+    const row = Math.floor(idx / COLS);
+    if (row !== lastRow) {
+      lines.push(current);
+      current = "";
+      lastRow = row;
+    }
+    const cell = buffer.get(row, idx % COLS);
+    if (cell.glyph !== "") current += cell.glyph; // "" = wide-glyph continuation, already represented by its head
+  }
+  lines.push(current);
+  return lines.join("\n");
+}
+
+$("#vb-distill").addEventListener("click", () => {
+  if (selAnchor === null || selHead === null) return;
+  const range = { from: Math.min(selAnchor, selHead), to: Math.max(selAnchor, selHead) };
+  const text = selectionText(range);
+  if (!text.trim()) {
+    flash("nothing to distill — the selection is air");
+    return;
+  }
+  const stats = censusText(text);
+  // Name derives from the ductus's own content-hash id, not Math.random —
+  // Directive 1 reaches even a label nobody's rendering depends on;
+  // ductusId() already excludes name from its hash, so this is circular
+  // in a harmless way: build once, then wear your own fingerprint.
+  const distilled = buildDuctus(stats, { name: "distilling", author: "distilled" });
+  const named = { ...distilled, name: `distilled-${distilled.id.replace("aes_", "")}` };
+  dockAesthetic(named);
+  logOp({
+    op: "distill",
+    scope: { kind: "selection" },
+    args: { range, resultId: named.id },
+  });
+  flash(`${named.name} distilled from the selection — docked in the rail, drag it onto a corner`);
+  render();
 });
 
 // ── controller overlays: instruments pinned to the page's anatomy ─────
